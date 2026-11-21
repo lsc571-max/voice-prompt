@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#14161c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -134,6 +134,8 @@ textarea.compose{width:100%;min-height:52vh;resize:vertical;border:1px solid var
 .imic.on{background:var(--rec);animation:pulse 1.4s infinite}
 .idel{width:38px;height:38px;border-radius:10px;color:var(--sub);font-size:16px;flex:none}
 .idel:active{background:var(--line)}
+.idel.lbl{width:auto;height:46px;padding:0 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:15px;line-height:1}
+.idel.lbl span{font-size:11.5px;font-weight:600;color:var(--sub)}
 .itext{width:100%;min-height:52px;resize:none;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px 14px;font-size:16px;line-height:1.55;outline:none;user-select:text;-webkit-user-select:text}
 .itext:focus{border-color:var(--accent);background:var(--panel)}
 .icard .interim{font-size:14px;min-height:0;margin-top:4px}
@@ -151,7 +153,7 @@ textarea.compose{width:100%;min-height:52vh;resize:vertical;border:1px solid var
 .smenu b{display:block;font-size:16px}
 .smenu small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--sub);font-size:13px;margin-top:3px;line-height:1.45}
 .smenu .go{padding:0 2px}
-.inote{display:block;background:none;border:0;padding:4px 0 0;font-size:13px;color:var(--accent);font-weight:600;text-align:left}
+.inote{display:block;background:none;border:0;padding:6px 0 0;font-size:14.5px;color:var(--accent);font-weight:600;text-align:left}
 .iclips{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .iclips:empty{display:none}
 .chip.danger{color:var(--rec);border-color:color-mix(in srgb,var(--rec) 40%,var(--line))}
@@ -182,6 +184,8 @@ textarea.compose{width:100%;min-height:52vh;resize:vertical;border:1px solid var
 .ai-res .f b{font-size:13px;color:var(--accent)}
 .ai-res .f p{margin:3px 0 0;white-space:pre-wrap;line-height:1.55}
 .ai-res .f.none p{color:var(--sub)}
+.aiundo{display:flex;align-items:center;gap:8px;background:var(--accent-soft);border-radius:14px;padding:10px 12px;margin:-4px 0 12px;font-size:14px}
+.aiundo span{flex:1}
 .lock{background:var(--accent-soft);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.55}
 .getkey{display:block;padding:12px 14px;margin:0 0 8px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--accent);font-weight:600;text-decoration:none;font-size:14.5px}
 #v-google .field{margin:6px 0 8px}
@@ -308,7 +312,7 @@ textarea.compose{width:100%;min-height:52vh;resize:vertical;border:1px solid var
 <section class="view" id="v-google">
   <header class="bar"><button class="icon-btn" data-back>←</button><h1>구글 연결</h1></header>
   <div class="body">
-    <div class="lock">🔒 키는 <b>이 스마트폰 안에만</b> 저장됩니다. 구글 드라이브·깃허브 등 어디에도 올라가지 않고, 저장한 뒤에는 화면에 다시 보이지 않습니다.</div>
+    <div class="lock">🔒 키는 <b>이 스마트폰 안에만</b> 저장됩니다. 구글 드라이브·깃허브 등 어디에도 올라가지 않고, 저장한 뒤에는 화면에 다시 보이지 않습니다.<br>더 안전하게 쓰려면 키를 받을 때 ‘API 제한’에서 해당 API만 허용해 두세요.</div>
 
     <div class="sect">구글 AI (Gemini)</div>
     <p class="muted">‘AI로 한 번에 말하기’, ‘AI로 정리하기’, ‘AI로 지시문 정리’에 씁니다.</p>
@@ -411,8 +415,11 @@ const stack=['home']; let cur='pc';
 function show(v){if(live)micStop();document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));regrow()}
 const regrow=()=>document.querySelectorAll('.view.on .itext').forEach(t=>grow(t));
 addEventListener('resize',()=>regrow());
-function go(v){stack.push(v);render(v);show(v)}
-function back(){if(stack.length>1)stack.pop();const v=stack[stack.length-1];render(v);show(v)}
+// 휴대폰 ‘뒤로’ 버튼·제스처도 한 화면씩 뒤로 가도록 브라우저 기록과 맞춤
+function go(v){stack.push(v);history.pushState({d:stack.length},'');render(v);show(v)}
+function doBack(){if(stack.length>1)stack.pop();const v=stack[stack.length-1];render(v);show(v)}
+function back(){if(stack.length>1)history.back();else doBack()}
+addEventListener('popstate',()=>{if(stack.length>1)doBack()});
 function renderApp(){const B=$('#app-auto');B.innerHTML=autoBlock('app');B.querySelectorAll('.itext').forEach(grow)}
 function render(v){({ai:renderAI,setone:renderSetOne,google:renderGoogle,app:renderApp,steps:renderSteps,items:renderItems,saved:renderSaved,compose:renderCompose,settings:renderSettings})[v]?.()}
 document.addEventListener('click',e=>{
@@ -438,7 +445,7 @@ async function micStart(o){
     const chunks=[];L.rec=new MediaRecorder(L.stream);
     L.rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
     L.rec.onstop=async()=>{
-      L.stream.getTracks().forEach(t=>t.stop());
+      L.stream.getTracks().forEach(t=>t.stop());if(L.discard)return;
       const blob=new Blob(chunks,{type:L.rec.mimeType||'audio/webm'}),key=uid();
       await idbPut(key,blob);o.node.clips.push({key,type:blob.type,at:Date.now()});save();o.onSaved?.();
     };
@@ -459,8 +466,8 @@ async function micStart(o){
   L.tick=setInterval(()=>{const s=(Date.now()-L.t0)/1000|0;o.onTick?.(String(s/60|0).padStart(2,'0')+':'+String(s%60).padStart(2,'0'))},250);
   live=L;
 }
-function micStop(){
-  const L=live;if(!L)return;live=null;clearInterval(L.tick);
+function micStop(discard){
+  const L=live;if(!L)return;live=null;L.discard=!!discard;clearInterval(L.tick);
   L.btn.classList.remove('on');L.btn.textContent=L.btn.dataset.icon||'🎙';
   if(L.sr){L.sr.onend=null;try{L.sr.stop()}catch(e){}}
   if(L.interim)L.interim.textContent='';
@@ -486,8 +493,8 @@ function card(n,path,no,{step=false,label=''}={}){
       ${step?'<span class="grip" aria-label="끌어서 순서 옮기기">⠿</span>':''}<div class="no${step?' step-no':''}">${no}</div>
       ${step?'':`<b class="ititle">${esc(label||n.title)}</b>`}
       <span class="itime"></span>
-      <button class="idel" data-clear="${path}" aria-label="말한 내용 지우기" title="말한 내용 지우기">🗑</button>
-      ${step?`<button class="idel" data-del="${path}" aria-label="칸 삭제" title="칸 삭제">✕</button>`:''}
+      <button class="idel lbl" data-clear="${path}" title="말한 내용 지우기">🗑<span>지우기</span></button>
+      ${step?`<button class="idel lbl" data-del="${path}" title="칸 삭제">✕<span>칸 삭제</span></button>`:''}
       <button class="imic" data-mic="${path}" aria-label="음성 입력">🎙</button>
     </div>
     <textarea class="itext" data-ta="${path}" rows="1" placeholder="🎙을 누르고 말하거나 직접 입력하세요">${esc(n.text)}</textarea>
@@ -497,7 +504,7 @@ function card(n,path,no,{step=false,label=''}={}){
 function renderItems(){
   $('#items-title').textContent=WS[cur].name;
   const L=$('#items-list');
-  L.innerHTML=autoBlock(cur)+`<button class="ai-btn" data-ai="items"><b>✨ AI로 한 번에 말하기</b><small>한 번에 말하면 ${esc(W().items.slice(0,SUB_ITEM).map(x=>x.title).join('·'))}·진행 순서 칸에 알아서 나눠 넣습니다</small></button>`+W().items.map((it,i)=>{
+  L.innerHTML=autoBlock(cur)+`<button class="ai-btn" data-ai="items"><b>✨ AI로 한 번에 말하기</b><small>한 번에 말하면 ${esc(W().items.slice(0,SUB_ITEM).map(x=>x.title).join('·'))}·진행 순서 칸에 알아서 나눠 넣습니다</small></button>`+aiUndoBar()+W().items.map((it,i)=>{
     if(i!==SUB_ITEM)return card(it,i,i+1);
     const filled=it.subs.filter(x=>x.text.trim()||x.clips.length).length;
     return `<div class="item"><button class="row" data-steps="${i}" style="width:100%;text-align:left">
@@ -511,7 +518,7 @@ function renderSteps(){
   const it=W().items[SUB_ITEM];
   $('#steps-title').textContent=WS[cur].name+' · '+it.title;
   const L=$('#steps-list');
-  L.innerHTML=`<button class="ai-btn" data-ai="steps"><b>✨ AI로 정리하기</b><small>진행 순서를 한 번에 말하면 1, 2, 3 … 순서대로 나눠 넣습니다</small></button><div class="steps reorder">${it.subs.map((s,j)=>card(s,SUB_ITEM+'.'+j,j+1,{step:true})).join('')}</div>
+  L.innerHTML=`<button class="ai-btn" data-ai="steps"><b>✨ AI로 정리하기</b><small>진행 순서를 한 번에 말하면 1, 2, 3 … 순서대로 나눠 넣습니다</small></button>${aiUndoBar()}<div class="steps reorder">${it.subs.map((s,j)=>card(s,SUB_ITEM+'.'+j,j+1,{step:true})).join('')}</div>
     <button class="add-sub" data-add="${SUB_ITEM}" style="height:56px;font-size:16px">＋ 추가</button>
     <p class="muted" style="text-align:center">순서는 길게 눌러 끌어서 바꿉니다. (번호를 길게 누르거나, ⠿를 잡으면 바로 옮겨집니다)</p>`;
   L.querySelectorAll('.itext').forEach(grow);
@@ -524,6 +531,9 @@ lists.forEach(L=>{
   L.addEventListener('click',async e=>{
     const st=e.target.closest('[data-steps]'); if(st){go('steps');return}
     const ai=e.target.closest('[data-ai]'); if(ai){openAI(ai.dataset.ai);return}
+    const au=e.target.closest('[data-aiundo]'); if(au){const w=W();
+      if(au.dataset.aiundo==='yes'){w.items.forEach((x,i)=>{const b=w.aiUndo[i];x.text=b.text;x.clips=b.clips;x.subs=b.subs});toast('AI로 넣기 전으로 되돌렸습니다')}
+      w.aiUndo=null;save();rerender();return}
     const mic=e.target.closest('[data-mic]'); if(mic){
       const path=mic.dataset.mic,c=mic.closest('.icard'),node=getNode(path);
       micToggle({btn:mic,node,ta:c.querySelector('.itext'),interim:c.querySelector('.interim'),
@@ -535,7 +545,7 @@ lists.forEach(L=>{
       const n=getNode(clr.dataset.clear);if(!n.text&&!n.clips.length)return;
       const p=String(clr.dataset.clear).split('.'),label=p.length>1?`${W().items[+p[0]].title} ${+p[1]+1}번`:n.title;
       if(!confirm(`‘${label}’의 글과 녹음을 지울까요? (칸은 남습니다)`))return;
-      if(live)micStop();for(const c of n.clips)await idbDel(c.key);n.text='';n.clips=[];save();rerender();toast('지웠습니다');return}
+      if(live)micStop(live.node===n);for(const c of n.clips)await idbDel(c.key);n.text='';n.clips=[];save();rerender();toast('지웠습니다');return}
     const cl=e.target.closest('[data-clips]'); if(cl){
       const box=cl.nextElementSibling;if(box.innerHTML){box.innerHTML='';return}
       const n=getNode(cl.dataset.clips);
@@ -544,7 +554,7 @@ lists.forEach(L=>{
       return}
     const del=e.target.closest('[data-del]'); if(del){
       if(!confirm('이 순서와 녹음을 삭제할까요?'))return;
-      if(live)micStop();const [a,i]=getList(del.dataset.del);const [n]=a.splice(i,1);for(const c of n.clips)await idbDel(c.key);save();rerender();return}
+      if(live)micStop(live.node===getNode(del.dataset.del));const [a,i]=getList(del.dataset.del);const [n]=a.splice(i,1);for(const c of n.clips)await idbDel(c.key);save();rerender();return}
     const ad=e.target.closest('[data-add]'); if(ad){
       if(live)micStop();const it=W().items[+ad.dataset.add];it.subs.push(newNode(''));save();rerender();
       const tas=L.querySelectorAll('.itext');const last=tas[tas.length-1];last.scrollIntoView({block:'center'});last.focus();return}
@@ -667,14 +677,14 @@ function doMerge(){const w=W();w.draft=merged();save();go('compose')}
 $('#btn-merge').onclick=doMerge;$('#btn-merge2').onclick=doMerge;
 
 /* ---------- 지시문 편집 ---------- */
-function renderCompose(){undoText=null;$('#c-undo').hidden=true;
+function renderCompose(){$('#c-undo').hidden=W().composeUndo==null;
   const w=W();$('#compose').value=w.draft;$('#app-name').value=state.appName;
   document.querySelectorAll('[data-auto]').forEach(b=>b.classList.toggle('on',b.dataset.auto===w.autoPos));
 }
 $('#compose').addEventListener('input',e=>{W().draft=e.target.value;save()});
 $('#app-name').addEventListener('input',e=>{state.appName=e.target.value;save()});
 document.querySelectorAll('[data-auto]').forEach(b=>b.onclick=()=>{W().autoPos=b.dataset.auto;W().draft=merged();save();renderCompose()});
-$('#re-merge').onclick=()=>{if(confirm('지금 편집한 내용 대신 항목을 다시 합칠까요?')){W().draft=merged();save();renderCompose()}};
+$('#re-merge').onclick=()=>{if(confirm('지금 편집한 내용 대신 항목을 다시 합칠까요?')){W().composeUndo=null;W().draft=merged();save();renderCompose()}};
 $('#c-listen').onclick=()=>speaking?stopSpeak():speak($('#compose').value);
 $('#c-copy').onclick=()=>copy($('#compose').value);
 $('#c-claude').onclick=async()=>{
@@ -718,7 +728,7 @@ async function speak(text){
     try{
       for(const part of chunksOf(text,1400)){
         if(!speaking)break;
-        const r=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},
+        const r=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},
           body:JSON.stringify({input:{text:part},voice:{languageCode:'ko-KR',name:'ko-KR-Neural2-A'},audioConfig:{audioEncoding:'MP3'}})});
         if(!r.ok)throw new Error(r.status);
         const {audioContent}=await r.json();
@@ -810,22 +820,33 @@ async function gemini(prompt,schema){
   const key=localStorage.getItem('vp.gemkey');if(!key)throw Object.assign(new Error('nokey'),{nokey:true});
   let last;
   for(const m of GEM_MODELS){
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,{method:'POST',
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),30000);let r;
+    try{r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,{method:'POST',signal:ac.signal,
       headers:{'Content-Type':'application/json','x-goog-api-key':key},
       body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],
-        generationConfig:{temperature:0.2,...(schema?{responseMimeType:'application/json',responseSchema:schema}:{})}})});
-    if(r.status===404){last=Object.assign(new Error('404'),{status:404});continue}
-    if(!r.ok)throw Object.assign(new Error(String(r.status)),{status:r.status});
-    const j=await r.json();const t=(j.candidates?.[0]?.content?.parts||[]).map(x=>x.text||'').join('').trim();
-    if(!t)throw new Error('empty');
-    return schema?JSON.parse(t):t;
+        generationConfig:{temperature:0.2,...(schema?{responseMimeType:'application/json',responseSchema:schema}:{})}})})}
+    catch(e){clearTimeout(tm);if(e.name==='AbortError'){last=Object.assign(new Error('timeout'),{timeout:true});continue}throw e}
+    clearTimeout(tm);
+    if(!r.ok){let msg='';try{msg=(await r.json()).error?.message||''}catch(e){}
+      last=Object.assign(new Error(msg||String(r.status)),{status:r.status,msg});
+      if(r.status===404||r.status===429||r.status>=500)continue; // 다른 모델로 한 번 더
+      throw last}
+    const j=await r.json(),cand=j.candidates?.[0];
+    const t=(cand?.content?.parts||[]).map(x=>x.text||'').join('').trim();
+    if(!t)throw Object.assign(new Error('empty'),{blocked:cand?.finishReason||j.promptFeedback?.blockReason||'EMPTY'});
+    if(!schema)return t;
+    try{return JSON.parse(t)}catch(e){throw Object.assign(new Error('json'),{blocked:cand?.finishReason||'JSON'})}
   }
   throw last;
 }
 function aiError(e){
-  if(e.nokey)toast('구글 AI 키가 없습니다. 설정 화면에서 제목 ‘설정’을 5번 눌러 ‘구글 연결’에 키를 넣어 주세요.');
-  else if(e.status===400||e.status===401||e.status===403)toast('구글 AI 키를 확인해 주세요. (오류 '+e.status+')');
+  if(e.nokey){if(confirm('구글 AI 키가 아직 없습니다.\n지금 ‘구글 연결’ 화면을 열어 키를 넣을까요?\n(나중에는 설정 화면 제목 ‘설정’을 5번 누르면 열립니다)'))go('google');return}
+  if(e.timeout)toast('구글 AI 응답이 너무 늦습니다. 인터넷 연결을 확인하고 다시 해 주세요.');
+  else if(e.status===401||e.status===403||(e.status===400&&/api key/i.test(e.msg||'')))toast('구글 AI 키를 확인해 주세요. (오류 '+e.status+')');
   else if(e.status===429)toast('구글 AI 사용량을 넘었습니다. 잠시 후 다시 해 주세요.');
+  else if(e.status>=500)toast('구글 AI가 지금 바쁩니다. 잠시 후 다시 해 주세요.');
+  else if(e.status)toast('구글 AI 오류 ('+e.status+')'+(e.msg?': '+e.msg.slice(0,120):''));
+  else if(e.blocked)toast(e.blocked==='MAX_TOKENS'?'내용이 너무 길어 AI가 끝까지 정리하지 못했습니다. 나눠서 해 주세요.':'AI가 답을 주지 않았습니다. 표현을 바꿔 다시 해 주세요.');
   else toast('AI 정리에 실패했습니다. 인터넷 연결을 확인하고 다시 해 주세요.');
 }
 const RULES=`규칙:
@@ -833,7 +854,8 @@ const RULES=`규칙:
 - '음', '어', 같은 말 반복 같은 군더더기만 빼고 읽기 좋은 문장으로 다듬는다.
 - 해당하는 내용이 없으면 빈 칸으로 둔다.`;
 let aiMode='items',aiRes=null,aiPut='append';
-function openAI(mode){aiMode=mode;aiRes=null;go('ai')}
+function aiUndoBar(){return W().aiUndo?`<div class="aiundo"><span>방금 AI로 칸에 넣었습니다.</span><button class="chip" data-aiundo="yes">↶ 되돌리기</button><button class="chip" data-aiundo="no">확인</button></div>`:''}
+function openAI(mode){aiMode=mode;aiRes=null;aiPut='append';go('ai')}
 function renderAI(){
   const w=W();w.aiText=w.aiText||{};
   const names=w.items.slice(0,SUB_ITEM).map(x=>x.title).join(', ');
@@ -886,22 +908,24 @@ $('#ai-result').addEventListener('click',async e=>{
   const pb=e.target.closest('[data-put]');if(pb){aiPut=pb.dataset.put;renderAIRes();return}
   if(!e.target.closest('#ai-apply'))return;
   const w=W(),st=w.items[SUB_ITEM];
-  if(aiPut==='replace'&&!confirm('지금 칸에 있는 내용을 AI 결과로 바꿀까요? (해당 칸의 기존 글은 지워집니다)'))return;
+  if(aiPut==='replace'&&!confirm('AI 결과가 있는 칸의 기존 글을 AI 결과로 바꿀까요?'+(aiRes.steps.length?'\n진행 순서는 AI가 나눈 단계로 새로 채워집니다.':'')+'\n(바로 뒤에 ‘되돌리기’로 원래대로 돌릴 수 있습니다)'))return;
+  // 되돌리기용으로 지금 상태를 보관 (녹음은 지우지 않음)
+  w.aiUndo=JSON.parse(JSON.stringify(w.items.map(x=>({text:x.text,clips:x.clips,subs:x.subs}))));
   for(const f of aiRes.fields){if(!f.text)continue;const n=w.items.find(x=>x.title===f.name);
     n.text=aiPut==='replace'||!n.text.trim()?f.text:n.text.replace(/\s+$/,'')+'\n'+f.text}
   if(aiRes.steps.length){
-    if(aiPut==='replace'){for(const x of st.subs)for(const c of x.clips)await idbDel(c.key);st.subs=aiRes.steps.map(t=>({...newNode(''),text:t}));
+    if(aiPut==='replace'){st.subs=aiRes.steps.map(t=>({...newNode(''),text:t}));
       while(st.subs.length<SUB_START)st.subs.push(newNode(''))}
     else{const q=[...aiRes.steps];for(const x of st.subs)if(q.length&&!x.text.trim()&&!x.clips.length)x.text=q.shift();
       for(const t of q)st.subs.push({...newNode(''),text:t})}
   }
-  w.aiText[aiMode]='';aiRes=null;save();back();toast('칸에 넣었습니다');
+  w.aiText[aiMode]='';aiRes=null;save();back();toast('칸에 넣었습니다. 마음에 안 들면 위의 ‘되돌리기’를 누르세요.');
 });
 
 /* 지시문 AI 정리 */
-let undoText=null;
 $('#c-ai').onclick=async()=>{
   const t=$('#compose').value.trim();if(!t){toast('정리할 지시문이 없습니다');return}
+  const ws=cur,w=W();
   const btn=$('#c-ai');btn.disabled=true;btn.textContent='AI가 정리하는 중…';
   try{
     const out=await gemini(`아래는 사용자가 항목별로 말해서 이어 붙인 지시문이다. 클로드(AI)에게 그대로 전달할 깔끔한 지시문으로 정리해라.
@@ -913,10 +937,12 @@ $('#c-ai').onclick=async()=>{
 
 지시문:
 '''${t}'''`);
-    undoText=$('#compose').value;$('#compose').value=out;W().draft=out;save();$('#c-undo').hidden=false;toast('AI가 정리했습니다. 마음에 안 들면 ‘되돌리기’를 누르세요.');
+    w.composeUndo=t;w.draft=out;save();
+    if(cur===ws&&stack[stack.length-1]==='compose'){$('#compose').value=out;$('#c-undo').hidden=false}
+    toast('AI가 정리했습니다. 마음에 안 들면 ‘되돌리기’를 누르세요.');
   }catch(e){aiError(e)}finally{btn.disabled=false;btn.textContent='✨ AI로 지시문 깔끔하게 정리'}
 };
-$('#c-undo').onclick=()=>{if(undoText===null)return;$('#compose').value=undoText;W().draft=undoText;save();undoText=null;$('#c-undo').hidden=true;toast('되돌렸습니다')};
+$('#c-undo').onclick=()=>{const w=W();if(w.composeUndo==null)return;$('#compose').value=w.composeUndo;w.draft=w.composeUndo;w.composeUndo=null;save();$('#c-undo').hidden=true;toast('되돌렸습니다')};
 
 load();
 if(localStorage.getItem('vp.client'))loadGis().catch(()=>{});
