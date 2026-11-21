@@ -126,6 +126,9 @@ textarea.compose{width:100%;min-height:52vh;resize:vertical;border:1px solid var
 .ititle{flex:1;font-size:17px}
 .itime{flex:1;color:var(--rec);font-size:13px;font-variant-numeric:tabular-nums;text-align:right}
 .ititle+.itime{flex:none}
+.grip{width:30px;height:44px;margin-left:-4px;display:grid;place-items:center;color:var(--sub);font-size:22px;cursor:grab;touch-action:none;flex:none}
+.icard.drag .ihead{cursor:grab}
+.icard.dragging{cursor:grabbing}
 .imic{width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;font-size:20px;display:grid;place-items:center;flex:none}
 .imic.on{background:var(--rec);animation:pulse 1.4s infinite}
 .idel{width:38px;height:38px;border-radius:10px;color:var(--sub);font-size:16px;flex:none}
@@ -412,7 +415,7 @@ const clipNote=n=>n.clips.length?`▶ 녹음 ${n.clips.length}개 듣기`:'';
 function card(n,path,no,{step=false}={}){
   return `<div class="icard${step?' drag':''}" data-path="${path}">
     <div class="ihead">
-      <div class="no${step?' step-no':''}">${no}</div>
+      ${step?'<span class="grip" aria-label="끌어서 순서 옮기기">⠿</span>':''}<div class="no${step?' step-no':''}">${no}</div>
       ${step?'':`<b class="ititle">${esc(n.title)}</b>`}
       <span class="itime"></span>
       ${step?`<button class="idel" data-del="${path}" aria-label="칸 삭제">✕</button>`:`<button class="idel" data-clear="${path}" aria-label="지우기">🗑</button>`}
@@ -441,7 +444,7 @@ function renderSteps(){
   const L=$('#steps-list');
   L.innerHTML=`<div class="steps reorder">${it.subs.map((s,j)=>card(s,SUB_ITEM+'.'+j,j+1,{step:true})).join('')}</div>
     <button class="add-sub" data-add="${SUB_ITEM}" style="height:56px;font-size:16px">＋ 추가</button>
-    <p class="muted" style="text-align:center">순서는 길게 눌러 끌어서 바꿉니다.</p>`;
+    <p class="muted" style="text-align:center">순서는 길게 눌러 끌어서 바꿉니다. (⠿를 잡으면 바로 옮겨집니다)</p>`;
   L.querySelectorAll('.itext').forEach(grow);
 }
 function getList(path){const p=String(path).split('.');return p.length===1?[W().items,+p[0]]:[W().items[+p[0]].subs,+p[1]]}
@@ -481,11 +484,17 @@ lists.forEach(L=>{
 
 /* 길게 눌러 끌기 (진행 순서) */
 let drag=null,dragJustEnded=false;
+// ⠿ 손잡이: 마우스·손가락 모두 바로 끌기 / 마우스: 글창 밖 아무 곳이나 바로 끌기 / 손가락: 길게 눌러 끌기
 lists.forEach(L=>L.addEventListener('pointerdown',e=>{
-  const row=e.target.closest('.drag'); if(!row||e.target.closest('textarea,button')||live)return;
-  const sx=e.clientX,sy=e.clientY;
-  const timer=setTimeout(()=>{drag={row,list:row.parentElement,sy,over:row};row.classList.add('dragging');navigator.vibrate?.(30)},420);
-  const cancel=ev=>{if(!drag&&(Math.abs(ev.clientX-sx)>8||Math.abs(ev.clientY-sy)>8)){clearTimeout(timer);off()}};
+  const row=e.target.closest('.drag'); if(!row||live||e.button>0)return;
+  const handle=e.target.closest('.grip');
+  if(!handle&&e.target.closest('textarea,button'))return;
+  const sx=e.clientX,sy=e.clientY,now=!!handle||e.pointerType==='mouse';
+  if(now)e.preventDefault();
+  const begin=()=>{drag={row,list:row.parentElement,sy,over:row};row.classList.add('dragging');navigator.vibrate?.(30)};
+  const timer=now?null:setTimeout(begin,420);
+  const cancel=ev=>{if(drag||(Math.abs(ev.clientX-sx)<=6&&Math.abs(ev.clientY-sy)<=6))return;
+    if(now){begin();return}clearTimeout(timer);off()};
   const up=()=>{clearTimeout(timer);off();if(drag)endDrag()};
   function off(){removeEventListener('pointermove',cancel);removeEventListener('pointerup',up);removeEventListener('pointercancel',up)}
   addEventListener('pointermove',cancel);addEventListener('pointerup',up);addEventListener('pointercancel',up);
