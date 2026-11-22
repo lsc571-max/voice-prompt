@@ -450,7 +450,9 @@ async function idbDel(k){const d=await idb;d.transaction('a','readwrite').object
 
 /* ---------- 화면 이동 ---------- */
 const stack=['home']; let cur='pc';
-function show(v){if(live)micStop();document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));regrow()}
+function show(v){if(live)micStop();
+  if(v!=='items'&&v!=='steps'&&state?.ws)for(const k in state.ws)if(state.ws[k].aiUndo){state.ws[k].aiUndo=null;save()} // 메뉴를 떠나면 AI 되돌리기는 끝
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));regrow()}
 const regrow=()=>document.querySelectorAll('.view.on .itext').forEach(t=>grow(t));
 addEventListener('resize',()=>regrow());
 // 휴대폰 ‘뒤로’ 버튼·제스처도 한 화면씩 뒤로 가도록 브라우저 기록과 맞춤
@@ -474,7 +476,9 @@ let toastT; function toast(m){const t=$('#toast');t.textContent=m;t.classList.ad
 // node가 있으면 녹음 파일도 따로 저장, 없으면(설정 칸) 글자만 받아 적음. 받아 적은 말은 고치지 않음.
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let live=null;
-function appendText(ta,t){t=t.trim();if(!t)return;ta.value=(ta.value&&!/\s$/.test(ta.value)?ta.value+' ':ta.value)+t;ta.dispatchEvent(new Event('input',{bubbles:true}))}
+function appendText(ta,t,sink){t=t.trim();if(!t)return;ta.value=(ta.value&&!/\s$/.test(ta.value)?ta.value+' ':ta.value)+t;
+  if(!ta.isConnected&&sink){sink(ta.value);return} // 화면이 이미 다시 그려졌으면 데이터에 바로 저장
+  ta.dispatchEvent(new Event('input',{bubbles:true}))}
 async function micStart(o){
   if(live)micStop();
   const L={...o,rec:null,sr:null,stream:null,t0:Date.now(),tick:null};
@@ -488,7 +492,7 @@ async function micStart(o){
       L.stream.getTracks().forEach(t=>t.stop());if(L.discard)return res();
       const blob=new Blob(chunks,{type:L.rec.mimeType||'audio/webm'});
       if(o.node){const key=uid();await idbPut(key,blob);o.node.clips.push({key,type:blob.type,at:Date.now()});save();o.onSaved?.()}
-      if(sttKey){try{toast('구글 음성 인식으로 글자로 바꾸는 중…');appendText(o.ta,await sttTranscribe(blob,sttKey))}catch(e){toast('구글 음성 인식 실패: '+e.message)}}
+      if(sttKey){try{toast('구글 음성 인식으로 글자로 바꾸는 중…');appendText(o.ta,await sttTranscribe(blob,sttKey),o.sink)}catch(e){toast('구글 음성 인식 실패: '+e.message)}}
       res();
     }});
     L.rec.start();
@@ -498,7 +502,7 @@ async function micStart(o){
     const done=new Set();
     sr.onresult=e=>{let fin='',tmp='';
       for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal){if(!done.has(i)){done.add(i);fin+=r[0].transcript}}else tmp+=r[0].transcript}
-      if(fin)appendText(o.ta,fin);if(o.interim)o.interim.textContent=tmp};
+      if(fin)appendText(o.ta,fin,o.sink);if(o.interim)o.interim.textContent=tmp};
     sr.onend=()=>{if(live===L){done.clear();try{sr.start()}catch(e){}}};
     sr.onerror=e=>{if(e.error==='not-allowed'||e.error==='audio-capture')toast(o.node?'받아쓰기를 시작하지 못했습니다. 녹음은 계속됩니다.':'받아쓰기를 시작하지 못했습니다.')};
     try{sr.start()}catch(e){}
@@ -516,7 +520,8 @@ function micStop(discard){
   L.btn.classList.remove('on');L.btn.textContent=L.btn.dataset.icon||'🎙';
   if(L.sr){try{L.sr.stop()}catch(e){}}
   L.rec&&L.rec.state!=='inactive'&&L.rec.stop();L.onStop?.();
-  return Promise.all([srDone,L.done]).then(()=>{if(L.interim)L.interim.textContent=''});
+  const recDone=L.done?Promise.race([L.done,new Promise(res=>setTimeout(res,15000))]):null;
+  return Promise.all([srDone,recDone]).then(()=>{if(L.interim)L.interim.textContent=''});
 }
 async function sttTranscribe(blob,key){
   const enc=/ogg/.test(blob.type)?'OGG_OPUS':/webm/.test(blob.type)?'WEBM_OPUS':null;
@@ -599,11 +604,11 @@ lists.forEach(L=>{
     const am=e.target.closest('[data-aimic]'); if(am){aiMicClick(am);return}
     const ag=e.target.closest('[data-aigo]'); if(ag){runAI(ag.dataset.aigo);return}
     const au=e.target.closest('[data-aiundo]'); if(au){const w=W();
-      if(au.dataset.aiundo==='yes'){w.items.forEach((x,i)=>{const b=w.aiUndo[i];x.text=b.text;x.clips=b.clips;x.subs=b.subs});toast('AI로 넣기 전으로 되돌렸습니다')}
+      if(au.dataset.aiundo==='yes'){if(!confirm('AI로 넣기 전으로 되돌릴까요?'))return;w.items.forEach((x,i)=>{const b=w.aiUndo[i];x.text=b.text;x.clips=b.clips;x.subs=b.subs});toast('AI로 넣기 전으로 되돌렸습니다')}
       w.aiUndo=null;save();rerender();return}
     const mic=e.target.closest('[data-mic]'); if(mic){
       const path=mic.dataset.mic,c=mic.closest('.icard'),node=getNode(path);
-      micToggle({btn:mic,node,ta:c.querySelector('.itext'),interim:c.querySelector('.interim'),
+      micToggle({btn:mic,node,ta:c.querySelector('.itext'),interim:c.querySelector('.interim'),sink:v=>{node.text=v;save()},
         onTick:t=>c.querySelector('.itime').textContent='● '+t,
         onStop:()=>c.querySelector('.itime').textContent='',
         onSaved:()=>{const el=document.querySelector(`.icard[data-path="${path}"] .inote`);if(el)el.textContent=clipNote(node)}});
@@ -629,8 +634,10 @@ lists.forEach(L=>{
   });
   L.addEventListener('input',e=>{
     const at=e.target.closest('[data-aita]');if(at){const w=W();(w.aiText=w.aiText||{})[at.dataset.aita]=at.value;grow(at);save();
-      const go=at.closest('.aibar').querySelector('.aigo');if(go)go.hidden=!at.value.trim()||!!live;return}
-    const ta=e.target.closest('[data-ta]');if(!ta)return;getNode(ta.dataset.ta).text=ta.value;grow(ta);save()});
+      const bar=at.closest('.aibar'),go=bar.querySelector('.aigo');if(go)go.hidden=!at.value.trim()||!!live||bar.classList.contains('busy');return}
+    const ta=e.target.closest('[data-ta]');if(!ta)return;getNode(ta.dataset.ta).text=ta.value;grow(ta);
+    if(W()?.aiUndo&&!ta.dataset.ta.startsWith('auto:')){W().aiUndo=null;document.querySelectorAll('.aiundo').forEach(x=>x.remove())}
+    save()});
 });
 
 /* 길게 눌러 끌기 (진행 순서) */
@@ -896,7 +903,7 @@ async function kfetch(url,opt){
     throw new Error(`오류 ${r.status}${why?' · '+why:''}${m?' — '+m.slice(0,140):''}`)}
   return r;
 }
-function renderGoogle(){
+function renderGoogle(){loadGis().catch(()=>{});
   document.querySelectorAll('#v-google .ksec').forEach(sec=>{const d=KDEF[sec.dataset.k],v=localStorage.getItem(d.ls);
     sec.querySelector('.kst').textContent=v?'· 저장됨':'· 없음';sec.querySelector('.kin').value=d.secret?'':(v||'');
     const res=sec.querySelector('.kres');res.textContent='';res.className='kres'});
@@ -958,19 +965,25 @@ const RULES=`규칙:
 function aiUndoBar(){return W().aiUndo?`<div class="aiundo"><span>방금 AI로 칸에 나눠 넣었습니다.</span><button class="chip" data-aiundo="yes">↶ 되돌리기</button><button class="chip" data-aiundo="no">확인</button></div>`:''}
 async function aiMicClick(btn){
   const mode=btn.dataset.aimic,bar=btn.closest('.aibar'),ta=bar.querySelector('.aitext'),go=bar.querySelector('.aigo');
-  if(live&&live.btn===btn){await micStop();runAI(mode);return}   // 두 번째 누름: 말하기 끝 → AI로 나누기
-  if(btn.disabled)return;
+  if(live&&live.btn===btn){ // 두 번째 누름: 말하기 끝 → AI로 나누기 (끝날 때까지 버튼 잠금)
+    btn.disabled=true;bar.classList.add('busy');if(go)go.hidden=true;bar.querySelector('.itime').textContent='받아 적는 중…';
+    await micStop();btn.disabled=false;bar.classList.remove('busy');runAI(mode);return}
+  if(btn.disabled||aiBusy.has(cur))return;
+  if(!localStorage.getItem('vp.gemkey')){aiError({nokey:true});return}
   if(go)go.hidden=true;
-  await micStart({btn,node:null,ta,interim:bar.querySelector('.interim'),
+  const w=W();
+  await micStart({btn,node:null,ta,interim:bar.querySelector('.interim'),sink:v=>{(w.aiText=w.aiText||{})[mode]=v;save()},
     onTick:t=>bar.querySelector('.itime').textContent='● '+t,onStop:()=>bar.querySelector('.itime').textContent=''});
 }
+const aiBusy=new Set(); // 같은 메뉴에서 AI가 두 번 돌지 않게
 async function runAI(mode){
   const ws=cur,w=W(),view=stack[stack.length-1];
+  if(aiBusy.has(ws))return;
   const text=((w.aiText||{})[mode]||'').trim();
   const bar=document.querySelector(`.view.on [data-aibar="${mode}"]`),btn=bar?.querySelector('.aimic'),go=bar?.querySelector('.aigo');
   if(!text){toast('말한 내용이 없습니다. 🎙을 누르고 말해 주세요.');return}
   const setBusy=b=>{if(!bar)return;btn.disabled=b;bar.classList.toggle('busy',b);bar.querySelector('.itime').textContent=b?'AI가 나누는 중…':'';if(go)go.hidden=b||!text}
-  setBusy(true);
+  setBusy(true);aiBusy.add(ws);
   try{
     const si=w.items.findIndex(x=>x.title===STEPS);let n=0;
     if(mode==='items'){
@@ -1003,7 +1016,7 @@ ${RULES}
     w.aiText[mode]='';save();
     if(cur===ws&&stack[stack.length-1]===view)rerender();
     toast(`AI가 ${n}${mode==='items'?'개 칸':'단계'}에 나눠 넣었습니다. 마음에 안 들면 ‘되돌리기’를 누르세요.`);
-  }catch(e){aiError(e)}finally{if(bar&&bar.isConnected)setBusy(false)}
+  }catch(e){aiError(e)}finally{aiBusy.delete(ws);if(bar&&bar.isConnected)setBusy(false)}
 }
 
 /* 지시문 AI 정리 */
