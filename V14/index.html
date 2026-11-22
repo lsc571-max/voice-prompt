@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14161c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>음성 지시문</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#f5f4f0; --panel:#ffffff; --ink:#16181d; --sub:#6b6f7a; --line:#e4e2dc;
+  --accent:#2f43c8; --accent-soft:#e8ebfb; --rec:#e0393e; --ok:#1f9d6b;
+  --radius:18px; --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(20,22,40,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#111318;--panel:#1a1d24;--ink:#eef0f4;--sub:#9aa0ad;--line:#2a2e38;--accent:#7d8cff;--accent-soft:#232848;--shadow:none}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+textarea,input{font:inherit;color:inherit}
+.view{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg);
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.view.on{display:flex}
+header.bar{display:flex;align-items:center;gap:8px;padding:14px 16px;min-height:60px}
+header.bar h1{flex:1;margin:0;font-size:19px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px}
+.icon-btn:active{background:var(--line)}
+.body{flex:1;overflow:auto;padding:4px 16px 24px}
+.foot{display:flex;gap:10px;padding:12px 16px 16px;border-top:1px solid var(--line);background:var(--bg)}
+.btn{flex:1;height:54px;border-radius:14px;font-weight:600;font-size:16px;background:var(--panel);border:1px solid var(--line)}
+.btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+.btn:active{transform:scale(.98)}
+.muted{color:var(--sub);font-size:14px}
+
+/* Home */
+.home{flex:1;display:flex;flex-direction:column;gap:14px;padding:12px 16px 20px}
+.brand{padding:18px 4px 8px}
+.brand h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.03em}
+.brand p{margin:6px 0 0;color:var(--sub)}
+.big{flex:1 0 auto;min-height:120px;border-radius:24px;background:var(--panel);box-shadow:var(--shadow);border:1px solid var(--line);
+  display:flex;align-items:center;gap:18px;padding:0 24px;text-align:left}
+.big .num{width:52px;height:52px;border-radius:16px;background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;font-weight:800;font-size:20px;flex:none}
+.big b{display:block;font-size:22px;letter-spacing:-.02em}
+.big span{display:block;color:var(--sub);font-size:14px;margin-top:4px}
+.big:active{transform:scale(.99)}
+
+/* Item list */
+.item{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;box-shadow:var(--shadow)}
+.row{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 14px;min-height:64px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.row .no{width:30px;height:30px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+.row .t{flex:1;min-width:0;padding:6px 4px;text-align:left}
+.row .t b{display:block;font-size:17px}
+.row .t small{display:block;color:var(--sub);font-size:14px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.step-no{width:44px!important;height:44px!important;border-radius:14px!important;font-size:19px!important;font-weight:800!important;background:var(--accent-soft)!important;color:var(--accent)!important;border:0!important}
+.go{color:var(--sub);font-size:22px;padding:0 10px}
+.add-sub{width:100%;height:46px;margin-top:8px;border-radius:12px;border:1px dashed var(--line);color:var(--accent);font-weight:600}
+.dragging{opacity:.95;box-shadow:0 12px 30px rgba(0,0,0,.18);background:var(--panel);position:relative;z-index:5;border-radius:12px}
+.drop-mark{outline:2px solid var(--accent);outline-offset:-2px;border-radius:12px}
+
+/* Recorder */
+@keyframes pulse{70%{box-shadow:0 0 0 22px rgba(224,57,62,0)}100%{box-shadow:0 0 0 0 rgba(224,57,62,0)}}
+.interim{color:var(--sub);font-size:15px;min-height:22px}
+.clip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 8px}
+.clip audio{flex:1;height:36px;min-width:0}
+.chip{height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);font-size:14px;font-weight:600;white-space:nowrap;color:var(--ink);background:var(--panel)}
+
+/* Saved / compose */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+.card h3{margin:0 0 6px;font-size:16px}
+.card .txt{white-space:pre-wrap;line-height:1.6;font-size:15px}
+.card .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.field{display:block;margin:0 0 14px}
+.field span{display:block;font-size:14px;color:var(--sub);margin-bottom:6px}
+.field input,.field textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px 14px;outline:none}
+.toggles{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.seg{height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line);font-size:14px;font-weight:600}
+.seg.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+textarea.compose{width:100%;min-height:52vh;resize:vertical;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:16px;font-size:16px;line-height:1.65;outline:none}
+.toolbar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.toolbar .btn{height:58px;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.toolbar .btn i{font-style:normal;font-size:18px}
+.empty{text-align:center;color:var(--sub);padding:60px 20px}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:12px 18px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.ver{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ver b{width:44px}
+.ver span{flex:1;color:var(--sub);font-size:14px}
+.icard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;padding:10px 12px 12px;box-shadow:var(--shadow);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.ihead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.icard .no{width:30px;height:30px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+.ititle{flex:1;font-size:17px}
+.itime{flex:1;color:var(--rec);font-size:14px;font-variant-numeric:tabular-nums;text-align:right}
+.ititle+.itime{flex:none}
+.grip{width:30px;height:44px;margin-left:-4px;display:grid;place-items:center;color:var(--sub);font-size:22px;cursor:grab;touch-action:none;flex:none}
+.icard.drag .ihead{cursor:grab}
+.icard.drag .no{touch-action:none}
+.icard.dragging{cursor:grabbing}
+.imic{width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;font-size:20px;display:grid;place-items:center;flex:none}
+.imic.on{background:var(--rec);animation:pulse 1.4s infinite}
+.idel{width:38px;height:38px;border-radius:10px;color:var(--sub);font-size:16px;flex:none}
+.idel:active{background:var(--line)}
+.idel.lbl{width:auto;height:46px;padding:0 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:15px;line-height:1}
+.idel.lbl span{font-size:14px;font-weight:600;color:var(--sub)}
+.itext{width:100%;min-height:52px;resize:none;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px 14px;font-size:16px;line-height:1.55;outline:none;user-select:text;-webkit-user-select:text}
+.itext:focus{border-color:var(--accent);background:var(--panel)}
+.icard .interim{font-size:14px;min-height:0;margin-top:4px}
+.inote{font-size:14px;color:var(--sub);margin-top:4px}
+.inote:empty,.icard .interim:empty{display:none}
+.brand-row{display:flex;align-items:center;gap:12px}
+.brand-row h1{flex:1}
+.gear{height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:flex;align-items:center;gap:6px;font-weight:600;font-size:15px}
+.gear i{font-style:normal;font-size:18px}
+.inote{display:block;background:none;border:0;padding:6px 0 0;font-size:14.5px;color:var(--accent);font-weight:600;text-align:left}
+.iclips{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.iclips:empty{display:none}
+.chip.danger{color:var(--rec);border-color:color-mix(in srgb,var(--rec) 40%,var(--line))}
+.saved-top{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 12px}
+.ablock{margin-bottom:14px}
+.ablock .icard{background:var(--accent-soft);border-color:transparent;box-shadow:none}
+.ablock .icard .ititle{color:var(--accent)}
+.ablock .icard .itext{background:var(--panel)}
+  background:linear-gradient(120deg,#2f43c8,#7b4fd8);box-shadow:0 6px 18px rgba(60,60,200,.22)}
+.btn.ai-run{width:100%;height:54px;margin:12px 0;background:linear-gradient(120deg,#2f43c8,#7b4fd8);color:#fff;border:0}
+.btn.ai-run:disabled{opacity:.6}
+.ai-row{display:flex;gap:8px}
+.ai-row .ai-run{flex:1}
+.ai-row #c-undo{flex:none;width:auto;padding:0 16px;height:54px;margin:12px 0}
+.aiundo{display:flex;align-items:center;gap:8px;background:var(--accent-soft);border-radius:14px;padding:10px 12px;margin:-4px 0 12px;font-size:14px}
+.aiundo span{flex:1}
+.aibar{border-radius:var(--radius);padding:12px 12px 12px 16px;margin-bottom:12px;color:#fff;background:linear-gradient(120deg,#2f43c8,#7b4fd8);box-shadow:0 6px 18px rgba(60,60,200,.22)}
+.aihead{display:flex;align-items:center;gap:10px}
+.aitit{flex:1;min-width:0}
+.aitit b{display:block;font-size:16px}
+.aitit small{display:block;opacity:.9;font-size:14.5px;margin-top:3px;line-height:1.45}
+.aibar .itime{flex:none;color:#fff;opacity:.95;font-size:14px}
+.aibar .aimic{width:56px;height:56px;font-size:24px;background:#fff;color:#2f43c8}
+.aibar .aimic.on{background:var(--rec);color:#fff}
+.aibar .aimic:disabled{opacity:.5}
+.aibar .aitext{margin-top:10px;background:rgba(255,255,255,.95);color:#16181d;border-color:transparent}
+.aibar .interim{color:#fff;opacity:.9}
+.aibar .aigo{margin:10px 0 0;height:48px;background:#fff!important;color:#2f43c8!important;font-weight:700}
+.aibar.busy{opacity:.85}
+.kbtns{display:flex;gap:8px;align-items:center}
+.kbtns .btn{flex:1;height:48px}
+.kbtns .chip{flex:none;height:48px}
+.kres{margin:8px 0 4px;font-size:14px;line-height:1.5;white-space:pre-wrap}
+.kres:empty{display:none}
+.kres.ok{color:var(--ok)}
+.kres.bad{color:var(--rec)}
+.ksec{padding-bottom:6px}
+.fold{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:var(--accent-soft);border-radius:14px;padding:13px 16px;margin-bottom:8px;color:var(--accent);font-weight:700;font-size:15px}
+.fold small{font-weight:600;font-size:14px;color:var(--sub);white-space:nowrap}
+.fold.open{border-radius:14px 14px 0 0;margin-bottom:0}
+.foldwrap{margin-bottom:8px}
+.foldwrap .icard{border-radius:0 0 var(--radius) var(--radius);border-top:0;margin-bottom:0}
+.ititle.bare{flex:1;font-size:14px;color:var(--sub);font-weight:500}
+#home-auto{margin:-4px 0 0}
+.namerow{display:flex;gap:8px}
+.namerow input{flex:1;min-width:0}
+.namerow .chip{height:auto;flex:none}
+.allbtn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:16px 20px;border-radius:18px;border:1px solid var(--line);background:var(--panel);font-weight:700;font-size:17px;flex:none}
+.allbtn small{color:var(--sub);font-weight:600;font-size:14px}
+.say{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--panel);font-size:16px;display:inline-grid;place-items:center;vertical-align:middle;margin-right:8px;flex:none}
+.say.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tawrap{position:relative}
+.say-ov{position:absolute;top:10px;right:10px;margin:0;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.tawrap textarea.compose{padding-right:56px}
+.txt.clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.acard h3{display:flex;align-items:center;flex-wrap:wrap}
+.say{opacity:.6;border:0;background:transparent;color:var(--sub);width:34px;height:34px}
+.say.on{opacity:1;background:var(--accent);color:#fff}
+.say-ov{background:var(--panel);box-shadow:none;border:1px solid var(--line)}
+.idel.say2{opacity:.6}
+.idel.say2.on{opacity:1;color:var(--accent)}
+.idel.onblue,.idel.onblue span{color:#fff;opacity:.8}
+.cloudchip{display:block;width:100%;text-align:left;padding:10px 14px;margin:-2px 0 2px;border-radius:12px;border:1px dashed var(--line);background:transparent;color:var(--sub);font-size:14px;font-weight:600;flex:none}
+.cloudchip[hidden]{display:none}
+.cloudchip.on{border-style:solid;color:var(--ok)}
+#tts-voice{flex:1;min-width:0;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:0 10px;font-size:15px}
+.lock{background:var(--accent-soft);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.55}
+.getkey{display:block;padding:12px 14px;margin:0 0 8px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--accent);font-weight:600;text-decoration:none;font-size:14.5px}
+#v-google .field{margin:6px 0 8px}
+.sect{font-size:14px;color:var(--sub);font-weight:700;margin:18px 2px 8px;letter-spacing:.02em}
+</style>
+</head>
+<body>
+
+<!-- 첫 화면 -->
+<section class="view on" id="v-home">
+  <div class="home" style="overflow-y:auto">
+    <div class="brand"><div class="brand-row"><h1>음성 지시문</h1><button class="gear" id="gear" aria-label="설정"><i>⚙</i>설정</button></div><p>말하면 받아 적고, 하나의 지시문으로 합칩니다.</p></div>
+    <button class="cloudchip" id="cloud-chip" hidden></button>
+    <div id="home-auto"></div>
+    <button class="big" data-group="app"><div class="num">1</div><div><b>앱 만들기</b><span>프로그램 만들기 · 변경하기 · 검증하기</span></div></button>
+    <button class="big" data-group="pc"><div class="num">2</div><div><b>PC에서 작업하기</b><span>PC에서 만들기 · 수정하기 · 검증하기</span></div></button>
+    <button class="big" data-group="web"><div class="num">3</div><div><b>웹으로 작업하기</b><span>웹에서 만들기 · 수정하기 · 검증하기</span></div></button>
+    <button class="allbtn" data-go="all"><span>📄 만든 지시문 보기</span><small id="all-count"></small></button>
+  </div>
+</section>
+
+<!-- 묶음 메뉴 (앱 만들기 · PC에서 작업하기 · 웹으로 작업하기) -->
+<section class="view" id="v-group">
+  <header class="bar"><button class="icon-btn" data-back aria-label="뒤로">←</button><h1 id="group-title"></h1></header>
+  <div class="home" id="group-list" style="padding-top:0;overflow-y:auto"></div>
+</section>
+
+<!-- 항목 목록 -->
+<section class="view" id="v-items">
+  <header class="bar"><button class="icon-btn" data-back aria-label="뒤로">←</button><h1 id="items-title"></h1>
+    <button class="icon-btn" data-go="saved" title="저장 목록" aria-label="저장 목록">☰</button></header>
+  <div class="body" id="items-list"></div>
+  <div class="foot"><button class="btn" data-go="saved">저장 목록</button><button class="btn primary" id="btn-merge">합치기</button></div>
+</section>
+
+<!-- 진행 순서 (1, 2, 3 …) -->
+<section class="view" id="v-steps">
+  <header class="bar"><button class="icon-btn" data-back aria-label="뒤로">←</button><h1 id="steps-title">진행 순서</h1></header>
+  <div class="body" id="steps-list"></div>
+  <div class="foot"><button class="btn primary" data-back>완료</button></div>
+</section>
+
+</section>
+
+<!-- 만든 지시문 (모든 메뉴) -->
+<section class="view" id="v-all">
+  <header class="bar"><button class="icon-btn" data-back aria-label="뒤로">←</button><h1>만든 지시문</h1></header>
+  <div class="body" id="all-list"></div>
+</section>
+
+<!-- 저장 목록 -->
+<section class="view" id="v-saved">
+  <header class="bar"><button class="icon-btn" data-back aria-label="뒤로">←</button><h1>저장 목록</h1></header>
+  <div class="body" id="saved-list"></div>
+  <div class="foot"><button class="btn primary" id="btn-merge2">합치기</button></div>
+</section>
+
+<!-- 지시문 편집 -->
+<section class="view" id="v-compose">
+  <header class="bar"><button class="icon-btn" data-back aria-label="뒤로">←</button><h1>지시문</h1></header>
+  <div class="body">
+    <label class="field"><span>앱 이름 (드라이브 폴더 이름) · 지시문을 보고 자동으로 지어집니다</span><div class="namerow"><input id="app-name" placeholder="자동으로 지어집니다"><button class="chip" id="name-auto" type="button">✨ 다시 짓기</button></div></label>
+    <div class="toggles">
+      <button class="seg" data-auto="before">자동 문구</button>
+      <button class="seg" data-auto="none">자동 문구 없음</button>
+      <button class="seg" id="re-merge">↻ 다시 합치기</button>
+    </div>
+    <div class="tawrap"><textarea class="compose" id="compose"></textarea><button class="say say-ov" data-say="compose" aria-label="듣기" title="듣기">🔊</button></div>
+    <div class="ai-row"><button class="btn ai-run" id="c-ai">✨ AI로 지시문 깔끔하게 정리</button><button class="btn" id="c-undo" hidden>↶ 되돌리기</button></div>
+    <div class="toolbar">
+      <button class="btn" id="c-listen"><i>🔊</i>듣기</button>
+      <button class="btn" id="c-copy"><i>⧉</i>복사</button>
+      <button class="btn primary" id="c-claude"><i>➤</i>클로드로</button>
+      <button class="btn" id="c-save"><i>⬇</i>저장</button>
+    </div>
+    <button class="btn" data-go="saved" style="width:100%;margin-bottom:8px">저장 목록 보기</button>
+    <p class="muted" style="text-align:center">저장하면 V0, V1, V2 … 새 번호로 저장 목록에 쌓입니다.</p>
+  </div>
+</section>
+
+<!-- 설정: 구글 연결 -->
+<section class="view" id="v-google">
+  <header class="bar"><button class="icon-btn" data-back aria-label="뒤로">←</button><h1>설정 · 구글 연결</h1></header>
+  <div class="body">
+    <div class="lock">🔒 키는 <b>이 스마트폰 안에만</b> 저장됩니다. 구글 드라이브·깃허브 등 어디에도 올라가지 않고, 저장한 뒤에는 화면에 다시 보이지 않습니다.<br>더 안전하게 쓰려면 키를 받을 때 ‘API 제한’에서 해당 API만 허용해 두세요.</div>
+
+    <div class="ksec" data-k="gem">
+      <div class="sect">1. 구글 AI API 키 (Gemini)</div>
+      <p class="muted">‘AI로 한 번에 말하기’, ‘AI로 정리하기’, ‘AI로 지시문 정리’에 씁니다.</p>
+      <a class="getkey" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">🔑 Gemini API 키 받으러 가기 ↗</a>
+      <label class="field"><span>Gemini API 키 <b class="kst"></b></span><input class="kin" type="password" autocomplete="off" placeholder="받은 키를 붙여넣기"></label>
+      <div class="kbtns"><button class="btn primary" data-ksave>저장하기</button><button class="btn" data-ktest>테스트</button><button class="chip danger" data-kdel>삭제</button></div>
+      <div class="kres"></div>
+    </div>
+
+    <div class="ksec" data-k="tts">
+      <div class="sect">2. 클라우드 TTS (구글 음성으로 읽기)</div>
+      <p class="muted">🔊 듣기를 구글의 자연스러운 목소리로 읽습니다. 키가 없으면 휴대폰 음성으로 읽습니다. <b>한 번 만든 음성은 이 스마트폰(드라이브 연결 시 드라이브에도)에 저장되어, 같은 글을 다시 들을 때는 요금이 들지 않습니다.</b></p>
+      <label class="field"><span>목소리 고르기</span><div class="namerow"><select id="tts-voice"><option value="">키를 저장하면 목록이 나옵니다</option></select><button class="chip" id="tts-preview" type="button">🔊 미리 듣기</button></div></label>
+      <p class="muted" id="tts-cache"></p>
+      <a class="getkey" href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com" target="_blank" rel="noopener">1단계: Text-to-Speech 사용 설정하러 가기 ↗</a>
+      <a class="getkey" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">🔑 2단계: 클라우드 API 키 받으러 가기 ↗</a>
+      <label class="field"><span>클라우드 TTS API 키 <b class="kst"></b></span><input class="kin" type="password" autocomplete="off" placeholder="받은 키를 붙여넣기"></label>
+      <div class="kbtns"><button class="btn primary" data-ksave>저장하기</button><button class="btn" data-ktest>테스트</button><button class="chip danger" data-kdel>삭제</button></div>
+      <div class="kres"></div>
+    </div>
+
+    <div class="ksec" data-k="drive">
+      <div class="sect">3. 구글 드라이브 (스마트폰·PC 같이 쓰기)</div>
+      <p class="muted">연결하면 구글 드라이브 ‘교수님 도우미’ 폴더의 ‘대분류 / 메뉴 / 앱 이름’ 아래에 <b>저장한 지시문(V0, V1 …, 앱 이름마다 번호가 이어짐)</b>이, ‘음성 지시문 앱 자료’에 <b>앞에 붙는 문구</b>와 <b>구글 음성 파일</b>이 저장되어, 스마트폰과 PC 어디서 열어도 똑같이 보이고 다시 들을 때 요금이 들지 않습니다. 첫 화면의 ‘☁ 드라이브’를 눌러 연결합니다.<br>OAuth 클라이언트 ID를 만들 때 ‘승인된 자바스크립트 원본’에 <b>https://lsc571-max.github.io</b> 를 넣어 주세요.</p>
+      <a class="getkey" href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener">1단계: Google Drive API 사용 설정하러 가기 ↗</a>
+      <a class="getkey" href="https://console.cloud.google.com/apis/credentials/oauthclient" target="_blank" rel="noopener">🔑 2단계: OAuth 클라이언트 ID 받으러 가기 ↗</a>
+      <label class="field"><span>연결할 구글 계정 (이 기기에만 저장)</span><input id="g-acct" type="email" autocomplete="email" placeholder="예: 내 지메일 주소"></label>
+      <label class="field"><span>OAuth 클라이언트 ID <b class="kst"></b></span><input class="kin" autocomplete="off" placeholder="xxxx.apps.googleusercontent.com"></label>
+      <div class="kbtns"><button class="btn primary" data-ksave>저장하기</button><button class="btn" data-ktest>테스트</button><button class="chip danger" data-kdel>삭제</button></div>
+      <div class="kres"></div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ---------- 기본값 ---------- */
+const FIVE = ['목적','주제','주의사항','활용하는 사람','전달할 내용'];
+const ETC = '기타', STEPS = '진행 순서';
+// 첫 화면 세 메뉴는 모두 같은 형태: 안에 만들기 · 수정(변경)하기 · 검증하기
+// 앱 만들기 안은 진행 순서 없음, PC·웹 안은 기타 다음에 진행 순서
+const EDIT5 = t=>[`수정할 ${t}`,'추가할 기능','삭제할 기능','고칠 내용','주의사항'];
+const CHECK5 = t=>[`검증할 ${t}`,'확인할 기능','알려진 문제','주의사항','검증 관점'];
+const WS = {
+  make:{name:'프로그램 만들기',items:[...FIVE,ETC]},
+  change:{name:'프로그램 변경하기',items:['변경할 프로그램','추가할 기능','삭제할 기능','고칠 내용','주의사항',ETC]},
+  verify:{name:'프로그램 검증하기',items:['검증할 프로그램','확인할 기능','알려진 문제','주의사항','검증 관점',ETC]},
+  pc:{name:'PC에서 만들기',items:[...FIVE,ETC,STEPS]},
+  pcEdit:{name:'PC에서 수정하기',items:[...EDIT5('작업'),ETC,STEPS]},
+  pcVerify:{name:'PC에서 검증하기',items:[...CHECK5('작업'),ETC,STEPS]},
+  web:{name:'웹에서 만들기',items:[...FIVE,ETC,STEPS]},
+  webEdit:{name:'웹에서 수정하기',items:[...EDIT5('웹 작업'),ETC,STEPS]},
+  webVerify:{name:'웹에서 검증하기',items:[...CHECK5('웹 작업'),ETC,STEPS]}
+};
+const GROUPS = {
+  app:{name:'앱 만들기',subs:[['make','새 앱의 지시문을 항목별로 작성'],['change','기능 추가·삭제·수정 지시문'],['verify','기존 프로그램을 두 번 검증하는 지시문']]},
+  pc:{name:'PC에서 작업하기',subs:[['pc','PC 작업을 새로 시작하는 지시문'],['pcEdit','해 둔 PC 작업을 고치는 지시문'],['pcVerify','PC 작업 결과를 검증하는 지시문']]},
+  web:{name:'웹으로 작업하기',subs:[['web','웹 작업을 새로 시작하는 지시문'],['webEdit','해 둔 웹 작업을 고치는 지시문'],['webVerify','웹 작업 결과를 검증하는 지시문']]}
+};
+const OLD_SUB = 5;           // V7까지의 '진행 순서' 위치 (옛 데이터 옮길 때만 씀)
+const SUB_START = 5;         // 처음 진행 순서 칸 수
+const SI = () => W().items.findIndex(x=>x.title===STEPS); // 이 화면의 진행 순서 위치 (없으면 -1)
+// 자동 문구: 전체(설정) → 메뉴(앱 만들기/PC/웹) → 세부 메뉴(프로그램 만들기/검증하기)
+const AUTO_LABEL = {global:'전체 자동 문구',app:'앱 만들기 자동 문구',pc:'PC에서 만들기 문구',pcEdit:'PC에서 수정하기 문구',pcVerify:'PC에서 검증하기 문구',web:'웹에서 만들기 문구',webEdit:'웹에서 수정하기 문구',webVerify:'웹에서 검증하기 문구',make:'프로그램 만들기 자동 문구',change:'프로그램 변경하기 자동 문구',verify:'프로그램 검증하기 자동 문구'};
+const EXPERT = '앱의 주제에 맞게 필요한 전문가 역할을 골라 함께 작업해 줘. 예를 들어 번역 앱이면 프로그램 전문가, 산업 디자인 전문가, 시각 디자인 전문가, 나라별 번역 전문가를, 상담 앱이면 상담 전문가, 프로그램 전문가, 시각 디자인 전문가, 산업 디자인 전문가를 활용해 줘.';
+const AUTO_INIT = {
+  global:'아래 지시문대로 진행해 줘. 완성되면 한 번 검증하고, 다른 시각의 전문가 관점에서 한 번 더 검증해 줘.\n'+EXPERT,
+  app:'', pc:'', web:'',
+  pcEdit:'아래 작업을 PC에서 수정해 줘. 기존 내용은 그대로 두고 요청한 부분만 바꿔 줘.',
+  pcVerify:'아래 PC 작업 결과를 검증해 줘.',
+  webEdit:'아래 웹 작업을 수정해 줘. 기존 내용은 그대로 두고 요청한 부분만 바꿔 줘.',
+  webVerify:'아래 웹 작업 결과를 검증해 줘.',
+  make:'이 지시문으로 앱을 만들어 줘.',
+  change:'아래 프로그램을 변경해 줘. 기존 기능은 그대로 두고 요청한 부분만 바꿔 줘.',
+  verify:'아래 프로그램을 검증해 줘.'
+};
+const autoChain = k => ['global', k];
+const LS = 'vp.state.v14', LS_V13 = 'vp.state.v13', LS_V12 = 'vp.state.v12', LS_V11 = 'vp.state.v11', LS_V10 = 'vp.state.v10', LS_V9 = 'vp.state.v9', LS_V8 = 'vp.state.v8', LS_V7 = 'vp.state.v7', LS_V6 = 'vp.state.v6', LS_V5 = 'vp.state.v5', LS_V4 = 'vp.state.v4', LS_V3 = 'vp.state.v3', LS_V2 = 'vp.state.v2', LS_V1 = 'vp.state.v1', LS_OLD = 'vp.state.v0';
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2,10);
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- 저장소: 텍스트=localStorage, 녹음=IndexedDB ---------- */
+let state;
+function newNode(title){return {id:uid(),title,text:'',clips:[],subs:[],open:false}}
+function freshItems(k){return WS[k].items.map(t=>{const n=newNode(t);if(t===STEPS)n.subs=Array.from({length:SUB_START},()=>newNode(''));return n})}
+// V7까지의 구조(6번째가 진행 순서) → V8 구조. 내용은 버리지 않음: 없어진 진행 순서의 글·녹음은 '기타'로 옮김
+function toV8(st){
+  for(const k in WS){const w=st.ws[k];if(!w)continue;const old=w.items;
+    w.items=WS[k].items.map(t=>old.find(x=>x.title===t)||(t===STEPS?{...newNode(t),subs:Array.from({length:SUB_START},()=>newNode(''))}:newNode(t)));
+    const oldSteps=old.find(x=>x.title===STEPS);
+    if(oldSteps&&!WS[k].items.includes(STEPS)){const etc=w.items.find(x=>x.title===ETC);
+      const lines=oldSteps.subs.filter(x=>x.text.trim()).map((x,j)=>(j+1)+'. '+x.text.trim());
+      if(oldSteps.text.trim())lines.unshift(oldSteps.text.trim());
+      if(lines.length)etc.text=(etc.text.trim()?etc.text.trim()+'\n':'')+'[예전 진행 순서]\n'+lines.join('\n');
+      for(const x of [oldSteps,...oldSteps.subs])etc.clips.push(...x.clips)}
+    w.aiUndo=null;delete w.aiText;}
+}
+function fromV1(){ // V1 데이터 → V2 (V1 원본은 그대로 둠)
+  let v;try{v=JSON.parse(localStorage.getItem(LS_V1))}catch(e){}
+  if(!v)return null;
+  for(const k in v.ws){const it=v.ws[k].items[OLD_SUB];if(!it)continue;
+    it.title='진행 순서';it.open=false;
+    if(it.text.trim()||it.clips.length){it.subs.unshift({...newNode(''),text:it.text,clips:it.clips});it.text='';it.clips=[]}}
+  return v;
+}
+function load(){
+  try{state=JSON.parse(localStorage.getItem(LS))}catch(e){}
+  for(const k of [LS_V13,LS_V12,LS_V11,LS_V10,LS_V9,LS_V8,LS_V7,LS_V6,LS_V5,LS_V4,LS_V3,LS_V2]) if(!state){try{state=JSON.parse(localStorage.getItem(k))}catch(e){}}
+  if(!state)state=fromV1();
+  if(state&&!state.expert){ // 이전 버전에서 온 경우: 쓰던 전체 문구는 두고 전문가 문구만 덧붙임
+    const g=state.autos?.global;if(g&&!g.text.includes(EXPERT))g.text=(g.text.trim()?g.text.trim()+'\n':'')+EXPERT;
+  }
+  let old=null;
+  if(!state){try{old=JSON.parse(localStorage.getItem(LS_OLD))}catch(e){} state={ws:{},appName:old?.appName||''}}
+  if(state&&state.ws&&!state.v8)toV8(state);
+  if(!state.autos)state.autos={};
+  for(const k in AUTO_LABEL) if(!state.autos[k]) state.autos[k]={id:k,title:AUTO_LABEL[k],text:AUTO_INIT[k],clips:[],subs:[]};
+  for(const k in WS) if(!state.ws[k]){
+    const w={items:freshItems(k),versions:[],draft:'',autoPos:'before'};
+    const o=old?.ws?.[k];
+    if(o){ // V0 내용 가져오기: 같은 이름의 항목 텍스트·녹음, 진행 방식 세부 항목
+      w.items.forEach((it,i)=>{const src=o.items.find(x=>x.title===it.title||(it.title===STEPS&&x.title==='진행 방식'));if(!src)return;
+        it.text=src.text;it.clips=src.clips;
+        if(it.title===STEPS&&src.subs.length){it.subs=src.subs.map(x=>({...x,subs:[]}));while(it.subs.length<SUB_START)it.subs.push(newNode(''))}});
+      w.versions=o.versions||[];w.autoPos=o.autoPos||'before';
+    }
+    state.ws[k]=w;
+  }
+  for(const k in state.ws) if(state.ws[k].autoPos==='after')state.ws[k].autoPos='before'; // '뒤에'는 없앰
+  if(!state.v10){const ap=state.autos.app?.text?.trim();
+    if(ap)for(const k of ['make','change','verify']){const a=state.autos[k];if(!a.text.includes(ap))a.text=ap+(a.text.trim()?'\n'+a.text:'')}
+    if(state.autos.app)state.autos.app.text='';
+    for(const k in state.ws)if(!state.ws[k].appName&&state.appName)state.ws[k].appName=state.appName; // 앱 이름은 메뉴별로
+    state.v10=true}
+  for(const k in state.ws)for(const v of state.ws[k].versions||[])if(!v.id)v.id=uid();
+  state.expert=true;state.v8=true;save();
+}
+function save(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){toast('저장 공간이 부족합니다')}}
+const idb = new Promise((res,rej)=>{const r=indexedDB.open('vp-audio',1);r.onupgradeneeded=()=>r.result.createObjectStore('a');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+async function idbPut(k,v){const d=await idb;return new Promise((r,j)=>{const t=d.transaction('a','readwrite');t.objectStore('a').put(v,k);t.oncomplete=r;t.onerror=()=>j(t.error)})}
+async function idbGet(k){const d=await idb;return new Promise(r=>{const q=d.transaction('a').objectStore('a').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}
+async function idbDel(k){const d=await idb;d.transaction('a','readwrite').objectStore('a').delete(k)}
+
+/* ---------- 화면 이동 ---------- */
+const stack=['home']; let cur='pc';
+function show(v){if(live)micStop();
+  if(v!=='items'&&v!=='steps'&&state?.ws)for(const k in state.ws)if(state.ws[k].aiUndo){state.ws[k].aiUndo=null;save()} // 메뉴를 떠나면 AI 되돌리기는 끝
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));regrow()}
+const regrow=()=>document.querySelectorAll('.view.on .itext').forEach(t=>grow(t));
+addEventListener('resize',()=>regrow());
+// 휴대폰 ‘뒤로’ 버튼·제스처도 한 화면씩 뒤로 가도록 브라우저 기록과 맞춤
+// 화면을 옮기면 문구는 다시 접힘
+const refold=()=>{if(typeof openFold!=='undefined')openFold.clear()};
+function go(v){stack.push(v);history.pushState({d:stack.length},'');refold();render(v);show(v)}
+function doBack(){if(stack.length>1)stack.pop();const v=stack[stack.length-1];refold();render(v);show(v)}
+function back(){if(stack.length>1)history.back();else doBack()}
+addEventListener('popstate',()=>{if(stack.length>1)doBack()});
+const ALL_ORDER=Object.values(GROUPS).flatMap(g=>g.subs.map(x=>x[0]));
+function allItems(){
+  const out=[];
+  for(const k of ALL_ORDER){const w=state.ws[k];if(!w)continue;
+    if(w.draft&&w.draft.trim())out.push({k,kind:'d',label:'최근 합친 지시문',sub:'저장 전',text:w.draft,at:w.draftAt||0,app:w.appName});
+    for(const v of w.versions.slice().reverse())out.push({k,kind:'v',v:v.v,vid:v.id,label:'V'+v.v,sub:'저장됨',text:v.text,at:v.at,app:v.app})}
+  return out;
+}
+function renderAll(){
+  const L=$('#all-list'),list=allItems();
+  if(!list.length){L.innerHTML='<div class="empty">아직 만든 지시문이 없습니다.<br>각 메뉴에서 [합치기]를 누르면 여기에 모입니다.</div>';return}
+  let last='';
+  L.innerHTML=list.map(x=>{const id=x.kind==='d'?`d:${x.k}`:`v:${x.k}:${x.vid}`;
+    const head=x.k!==last?`<div class="sect">${esc(WS[x.k].name)}</div>`:'';last=x.k;
+    return head+`<div class="card acard"><h3><button class="say" data-say="${id}" aria-label="듣기" title="듣기">🔊</button>${esc(x.label)} <span class="muted" style="font-weight:400">${x.app?'· '+esc(x.app)+' ':''}· ${x.sub}${x.at?' · '+new Date(x.at).toLocaleString('ko-KR'):''}</span></h3>
+      <div class="txt clamp" data-more>${esc(x.text)}</div>
+      <div class="acts"><button class="chip" data-aopen="${id}">열기</button><button class="chip" data-acopy="${id}">복사</button><button class="chip" data-aclaude="${id}">클로드로</button><button class="chip danger" data-adel="${id}">삭제</button></div></div>`}).join('');
+}
+$('#all-list').addEventListener('click',e=>{
+  const m=e.target.closest('[data-more]');if(m&&!e.target.closest('button')){m.classList.toggle('clamp');return}
+  const del=e.target.closest('[data-adel]');if(del){const [kind,k,n]=del.dataset.adel.split(':'),w=state.ws[k],dv=w.versions.find(x=>x.id===n);
+    if(kind==='d'){if(!confirm(`‘${WS[k].name}’의 최근 합친 지시문을 지울까요? (저장한 V번호 지시문은 그대로 남습니다)`))return;w.draft='';w.draftAt=0}
+    else{if(!confirm(`‘${WS[k].name}’의 V${dv?.v}${dv?.app?' ('+dv.app+')':''}을 삭제할까요?`+(cloud.on?' (드라이브에서도 지워집니다)':'')))return;
+      const gv=dv;if(gv)(w.gone2=w.gone2||[]).push(vKey(gv));w.versions=w.versions.filter(x=>x!==gv);cloud.on&&cloudSync().catch(()=>{})}
+    save();renderAll();toast('삭제했습니다');return}
+  const b=e.target.closest('[data-aopen],[data-acopy],[data-aclaude]');if(!b)return;
+  const id=b.dataset.aopen||b.dataset.acopy||b.dataset.aclaude,t=sayText(id);
+  if(b.dataset.acopy)return copy(t);
+  if(b.dataset.aclaude)return sendClaude(t);
+  const [kind,k]=id.split(':');cur=k;
+  if(kind==='v'){const w=state.ws[k],d=(w.draft||'').trim();
+    // 저장하지 않은 최근 지시문이 덮이지 않게 한 번 물어봄
+    if(d&&d!==t.trim()&&!w.versions.some(x=>x.text.trim()===d)&&!confirm('저장하지 않은 ‘최근 합친 지시문’이 이 저장본으로 바뀝니다. 계속할까요?'))return;
+    w.draft=t;w.draftAt=Date.now();save();toast('V'+(state.ws[k].versions.find(x=>x.id===id.split(':')[2])?.v??'')+'을 열었습니다')}
+  go('compose');
+});
+function renderHome(){cloudChip();const n=allItems().length;$('#all-count').textContent=n?n+'개 ›':'›';const B=$('#home-auto');B.innerHTML=foldCard('global','전체 자동 문구');B.querySelectorAll('.itext').forEach(grow)}
+let curGroup='app';
+function renderGroup(){const g=GROUPS[curGroup];$('#group-title').textContent=g.name;
+  $('#group-list').innerHTML=g.subs.map(([k,d],i)=>`<button class="big" data-ws="${k}"><div class="num">${'ABC'[i]}</div><div><b>${esc(WS[k].name)}</b><span>${esc(d)}</span></div></button>`).join('')}
+function render(v){({group:renderGroup,all:renderAll,home:renderHome,google:renderGoogle,steps:renderSteps,items:renderItems,saved:renderSaved,compose:renderCompose,})[v]?.()}
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]'); if(g){go(g.dataset.go);return}
+  const gp=e.target.closest('[data-group]'); if(gp){curGroup=gp.dataset.group;go('group');return}
+  const w=e.target.closest('[data-ws]'); if(w){cur=w.dataset.ws;go('items');return}
+  if(e.target.closest('[data-back]')) back();
+});
+// 전체 화면: 첫 터치 때 요청
+document.addEventListener('pointerdown',()=>{const d=document.documentElement;if(!document.fullscreenElement&&d.requestFullscreen)d.requestFullscreen().catch(()=>{})},{once:true});
+
+let toastT; function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),Math.max(2200,m.length*75))}
+
+/* ---------- 받아쓰기 엔진: 모든 마이크 버튼 공용 ---------- */
+// node가 있으면 녹음 파일도 따로 저장, 없으면(설정 칸) 글자만 받아 적음. 받아 적은 말은 고치지 않음.
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let live=null;
+function appendText(ta,t,sink){t=t.trim();if(!t)return;ta.value=(ta.value&&!/\s$/.test(ta.value)?ta.value+' ':ta.value)+t;
+  if(!ta.isConnected&&sink){sink(ta.value);return} // 화면이 이미 다시 그려졌으면 데이터에 바로 저장
+  ta.dispatchEvent(new Event('input',{bubbles:true}))}
+async function micStart(o){
+  if(live)micStop();
+  const L={...o,rec:null,sr:null,stream:null,t0:Date.now(),tick:null};
+  if(o.node){
+    try{L.stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){toast('마이크 권한이 필요합니다');return}
+    const chunks=[];L.rec=new MediaRecorder(L.stream);
+    L.rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+    L.done=new Promise(res=>{L.rec.onstop=async()=>{
+      L.stream.getTracks().forEach(t=>t.stop());if(L.discard)return res();
+      const blob=new Blob(chunks,{type:L.rec.mimeType||'audio/webm'});
+      const key=uid();await idbPut(key,blob);o.node.clips.push({key,type:blob.type,at:Date.now()});save();o.onSaved?.();
+      res();
+    }});
+    L.rec.start();
+  }
+  if(SR){
+    const sr=L.sr=new SR();sr.lang='ko-KR';sr.continuous=true;sr.interimResults=true;
+    const done=new Set();
+    sr.onresult=e=>{let fin='',tmp='';
+      for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal){if(!done.has(i)){done.add(i);fin+=r[0].transcript}}else tmp+=r[0].transcript}
+      if(fin)appendText(o.ta,fin,o.sink);if(o.interim)o.interim.textContent=tmp};
+    sr.onend=()=>{if(live===L){done.clear();try{sr.start()}catch(e){}}};
+    sr.onerror=e=>{if(e.error==='not-allowed'||e.error==='audio-capture')toast(o.node?'받아쓰기를 시작하지 못했습니다. 녹음은 계속됩니다.':'받아쓰기를 시작하지 못했습니다.')};
+    try{sr.start()}catch(e){}
+  }else if(!o.node){toast('이 브라우저는 음성 입력을 지원하지 않습니다');return}
+  else toast('이 브라우저는 받아쓰기를 지원하지 않습니다. 녹음만 저장됩니다.');
+  o.btn.classList.add('on');o.btn.dataset.icon=o.btn.textContent;o.btn.textContent='■';
+  L.tick=setInterval(()=>{const s=(Date.now()-L.t0)/1000|0;o.onTick?.(String(s/60|0).padStart(2,'0')+':'+String(s%60).padStart(2,'0'))},250);
+  live=L;
+}
+// 멈춘 뒤 마지막 말까지 다 받아 적을 때까지 기다릴 수 있도록 약속(Promise)을 돌려줌
+function micStop(discard){
+  const L=live;if(!L)return Promise.resolve();live=null;L.discard=!!discard;clearInterval(L.tick);
+  const srDone=L.sr?new Promise(res=>{L.sr.onend=res;setTimeout(res,1500)}):null;
+  L.btn.classList.remove('on');L.btn.textContent=L.btn.dataset.icon||'🎙';
+  if(L.sr){try{L.sr.stop()}catch(e){}}
+  L.rec&&L.rec.state!=='inactive'&&L.rec.stop();L.onStop?.();
+  const recDone=L.done?Promise.race([L.done,new Promise(res=>setTimeout(res,15000))]):null;
+  return Promise.all([srDone,recDone]).then(()=>{if(L.interim)L.interim.textContent=''});
+}
+const micToggle=o=>live&&live.btn===o.btn?micStop():micStart(o);
+const grow=ta=>{ta.style.height='auto';ta.style.height=Math.max(ta.scrollHeight,52)+'px'};
+
+/* ---------- 항목 목록: 1~5번은 바로 말하기, 6번 진행 순서는 들어가기 ---------- */
+const W=()=>state.ws[cur];
+// 화면 맨 위 문구: 평소에는 제목 한 줄만, 누르면 펼쳐져 전체 문장을 보고 그 자리에서 고치기·말하기
+const openFold=new Set();
+function foldCard(k,label){
+  const a=state.autos[k],has=a.text.trim();
+  if(!openFold.has(k))return `<button class="fold" data-fold="${k}"><span>${esc(label)}</span><small>${has?'눌러서 보기':'비어 있음 · 눌러서 넣기'} ▼</small></button>`;
+  return `<div class="foldwrap"><button class="fold open" data-fold="${k}"><span>${esc(label)}</span><small>접기 ▲</small></button>${card(a,'auto:'+k,'',{bare:true})}</div>`;
+}
+function autoBlock(k){
+  const up=autoChain(k).filter(x=>x!==k);
+  return `<div class="ablock">${up.map(x=>foldCard(x,'앞에 붙는 문구 (전체)')).join('')}${foldCard(k,'앞에 붙는 문구 ('+WS[k].name+')')}</div>`;
+}
+const clipNote=n=>n.clips.length?`▶ 녹음 ${n.clips.length}개 듣기`:'';
+function card(n,path,no,{step=false,label='',nomic=false,bare=false}={}){
+  return `<div class="icard${step?' drag':''}" data-path="${path}">
+    <div class="ihead">
+      ${step?'<span class="grip" role="img" aria-label="끌어서 순서 옮기기">⠿</span>':''}${bare?'<span class="ititle bare">눌러서 고치거나 🎙로 말하기</span>':`<div class="no${step?' step-no':''}">${no}</div>`}
+      ${step||bare?'':`<b class="ititle">${esc(label||n.title)}</b>`}
+      <span class="itime"></span>
+      <button class="idel lbl say2" data-say="n:${path}" title="듣기">🔊<span>듣기</span></button>
+      <button class="idel lbl" data-clear="${path}" title="말한 내용 지우기">🗑<span>지우기</span></button>
+      ${step?`<button class="idel lbl" data-del="${path}" title="칸 삭제">✕<span>칸 삭제</span></button>`:''}
+      ${nomic?'':`<button class="imic" data-mic="${path}" aria-label="음성 입력">🎙</button>`}
+    </div>
+    <textarea class="itext" data-ta="${path}" rows="1" placeholder="${nomic?'직접 입력하거나, 위의 ‘AI로 한 번에 말하기’로 채우세요':'🎙을 누르고 말하거나 직접 입력하세요'}">${esc(n.text)}</textarea>
+    <div class="interim"></div><button class="inote" data-clips="${path}">${clipNote(n)}</button><div class="iclips"></div>
+  </div>`;
+}
+// ‘AI로 한 번에 말하기’/‘AI로 정리하기’: 그 자리에서 🎙로 말하고 다시 누르면 AI가 칸에 나눠 넣음
+function aiBar(mode){
+  const w=W(),t=(w.aiText||{})[mode]||'',names=w.items.filter(x=>x.title!==STEPS).map(x=>x.title).join('·');
+  return `<div class="aibar" data-aibar="${mode}">
+    <div class="aihead"><div class="aitit"><b>✨ ${mode==='items'?'AI로 한 번에 말하기':'AI로 정리하기'}</b>
+      <small>${mode==='items'?`🎙을 누르고 자유롭게 말한 뒤 한 번 더 누르면 ${esc(names)} 칸에 알아서 나눠 넣습니다. 맞는 칸이 없는 내용은 ‘기타’로 갑니다.`:'🎙을 누르고 진행 순서를 말한 뒤 한 번 더 누르면 1, 2, 3 … 칸에 순서대로 나눠 넣습니다.'}</small></div>
+      <span class="itime"></span><button class="idel lbl say2 onblue" data-say="ai:${mode}" title="듣기">🔊<span>듣기</span></button><button class="idel lbl onblue" data-aiclear="${mode}" title="지우기">🗑<span>지우기</span></button><button class="imic aimic" data-aimic="${mode}" aria-label="AI로 말하기">🎙</button></div>
+    <textarea class="itext aitext" data-aita="${mode}" rows="1" placeholder="말한 내용이 여기에 적힙니다. 직접 입력해도 됩니다.">${esc(t)}</textarea>
+    <div class="interim"></div>
+    <button class="btn ai-run aigo" data-aigo="${mode}"${t.trim()?'':' hidden'}>✨ 이 내용 칸에 나눠 넣기</button>
+  </div>${aiUndoBar()}`;
+}
+function renderItems(){
+  $('#items-title').textContent=WS[cur].name;
+  const L=$('#items-list');
+  L.innerHTML=autoBlock(cur)+aiBar('items')+W().items.map((it,i)=>{
+    if(it.title!==STEPS)return card(it,i,i+1,{nomic:true});
+    const filled=it.subs.filter(x=>x.text.trim()||x.clips.length).length;
+    return `<div class="item"><button class="row" data-steps="${i}" style="width:100%;text-align:left">
+      <div class="no">${i+1}</div>
+      <div class="t"><b>${esc(it.title)}</b><small>${it.subs.length}개 중 ${filled}개 입력 · 눌러서 열기</small></div>
+      ${filled?'<i class="dot"></i>':''}<span class="go">›</span></button></div>`;
+  }).join('');
+  L.querySelectorAll('.itext').forEach(grow);
+}
+function renderSteps(){
+  const si=SI();if(si<0)return;const it=W().items[si];
+  $('#steps-title').textContent=WS[cur].name+' · '+it.title;
+  const L=$('#steps-list');
+  L.innerHTML=`${aiBar('steps')}<div class="steps reorder">${it.subs.map((s,j)=>card(s,si+'.'+j,j+1,{step:true})).join('')}</div>
+    <button class="add-sub" data-add="${si}" style="height:56px;font-size:16px">＋ 추가</button>
+    <p class="muted" style="text-align:center">순서는 길게 눌러 끌어서 바꿉니다. (번호를 길게 누르거나, ⠿를 잡으면 바로 옮겨집니다)</p>`;
+  L.querySelectorAll('.itext').forEach(grow);
+}
+function getList(path){const p=String(path).split('.');return p.length===1?[W().items,+p[0]]:[W().items[+p[0]].subs,+p[1]]}
+function getNode(path){if(String(path).startsWith('auto:'))return state.autos[path.slice(5)];const [a,i]=getList(path);return a[i]}
+const rerender=()=>render(stack[stack.length-1]);
+const lists=[$('#items-list'),$('#steps-list'),$('#home-auto')];
+lists.forEach(L=>{
+  L.addEventListener('click',async e=>{
+    const st=e.target.closest('[data-steps]'); if(st){go('steps');return}
+    const fd=e.target.closest('[data-fold]'); if(fd){const k=fd.dataset.fold;openFold.has(k)?openFold.delete(k):openFold.add(k);rerender();return}
+    const am=e.target.closest('[data-aimic]'); if(am){aiMicClick(am);return}
+    const ag=e.target.closest('[data-aigo]'); if(ag){runAI(ag.dataset.aigo);return}
+    const ac=e.target.closest('[data-aiclear]'); if(ac){const w=W(),m=ac.dataset.aiclear;if(!((w.aiText||{})[m]||'').trim())return;
+      if(!confirm('말한 내용을 지울까요?'))return;if(live)micStop(true);w.aiText[m]='';save();rerender();return}
+    const au=e.target.closest('[data-aiundo]'); if(au){const w=W();
+      if(au.dataset.aiundo==='yes'){if(!confirm('AI로 넣기 전으로 되돌릴까요?'))return;w.items.forEach((x,i)=>{const b=w.aiUndo[i];x.text=b.text;x.clips=b.clips;x.subs=b.subs});toast('AI로 넣기 전으로 되돌렸습니다')}
+      w.aiUndo=null;save();rerender();return}
+    const mic=e.target.closest('[data-mic]'); if(mic){
+      const path=mic.dataset.mic,c=mic.closest('.icard'),node=getNode(path);
+      micToggle({btn:mic,node,ta:c.querySelector('.itext'),interim:c.querySelector('.interim'),sink:v=>{node.text=v;save();if(path.startsWith('auto:'))phraseChanged(path.slice(5))},
+        onTick:t=>c.querySelector('.itime').textContent='● '+t,
+        onStop:()=>c.querySelector('.itime').textContent='',
+        onSaved:()=>{const el=document.querySelector(`.icard[data-path="${path}"] .inote`);if(el)el.textContent=clipNote(node)}});
+      return}
+    const clr=e.target.closest('[data-clear]'); if(clr){
+      const n=getNode(clr.dataset.clear);if(!n.text&&!n.clips.length)return;
+      const p=String(clr.dataset.clear).split('.'),label=p.length>1?`${W().items[+p[0]].title} ${+p[1]+1}번`:n.title;
+      if(!confirm(`‘${label}’의 글과 녹음을 지울까요? (칸은 남습니다)`))return;
+      if(live)micStop(live.node===n);for(const c of n.clips)await idbDel(c.key);n.text='';n.clips=[];
+      if(String(clr.dataset.clear).startsWith('auto:'))phraseChanged(clr.dataset.clear.slice(5));save();rerender();toast('지웠습니다');return}
+    const cl=e.target.closest('[data-clips]'); if(cl){
+      const box=cl.nextElementSibling;if(box.innerHTML){box.innerHTML='';return}
+      const n=getNode(cl.dataset.clips);
+      for(const [k,c] of n.clips.entries()){const b=await idbGet(c.key);if(!b)continue;const u=URL.createObjectURL(b);
+        box.insertAdjacentHTML('beforeend',`<div class="clip"><audio controls src="${u}"></audio><a class="chip" style="display:grid;place-items:center;text-decoration:none" href="${u}" download="${fileBase(n)}_녹음${k+1}.${ext(c.type)}">저장</a></div>`)}
+      return}
+    const del=e.target.closest('[data-del]'); if(del){
+      if(!confirm('이 순서와 녹음을 삭제할까요?'))return;
+      if(live)micStop(live.node===getNode(del.dataset.del));const [a,i]=getList(del.dataset.del);const [n]=a.splice(i,1);for(const c of n.clips)await idbDel(c.key);save();rerender();return}
+    const ad=e.target.closest('[data-add]'); if(ad){
+      if(live)micStop();const it=W().items[+ad.dataset.add];it.subs.push(newNode(''));save();rerender();
+      const tas=L.querySelectorAll('.itext');const last=tas[tas.length-1];last.scrollIntoView({block:'center'});last.focus();return}
+  });
+  L.addEventListener('input',e=>{
+    const at=e.target.closest('[data-aita]');if(at){const w=W();(w.aiText=w.aiText||{})[at.dataset.aita]=at.value;grow(at);save();
+      const bar=at.closest('.aibar'),go=bar.querySelector('.aigo');if(go)go.hidden=!at.value.trim()||!!live||bar.classList.contains('busy');return}
+    const ta=e.target.closest('[data-ta]');if(!ta)return;getNode(ta.dataset.ta).text=ta.value;grow(ta);
+    if(ta.dataset.ta.startsWith('auto:'))phraseChanged(ta.dataset.ta.slice(5));
+    if(W()?.aiUndo&&!ta.dataset.ta.startsWith('auto:')){W().aiUndo=null;document.querySelectorAll('.aiundo').forEach(x=>x.remove())}
+    save()});
+});
+
+/* 길게 눌러 끌기 (진행 순서) */
+let drag=null;
+// ⠿ 손잡이: 마우스·손가락 모두 바로 끌기 / 마우스: 글창 밖 아무 곳이나 바로 끌기 / 손가락: 길게 눌러 끌기
+lists.forEach(L=>L.addEventListener('pointerdown',e=>{
+  const row=e.target.closest('.drag'); if(!row||live||e.button>0)return;
+  const handle=e.target.closest('.grip');
+  if(!handle&&e.target.closest('textarea,button'))return;
+  const sx=e.clientX,sy=e.clientY,now=!!handle||e.pointerType==='mouse';
+  if(now)e.preventDefault();
+  const begin=()=>{drag={row,list:row.parentElement,sy,over:row};row.classList.add('dragging');navigator.vibrate?.(30)};
+  const timer=now?null:setTimeout(begin,420);
+  const cancel=ev=>{if(drag||(Math.abs(ev.clientX-sx)<=6&&Math.abs(ev.clientY-sy)<=6))return;
+    if(now){begin();return}clearTimeout(timer);off()};
+  const up=()=>{clearTimeout(timer);off();if(drag)endDrag()};
+  function off(){removeEventListener('pointermove',cancel);removeEventListener('pointerup',up);removeEventListener('pointercancel',up)}
+  addEventListener('pointermove',cancel);addEventListener('pointerup',up);addEventListener('pointercancel',up);
+}));
+addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const sc=drag.list.closest('.body'),rc=sc.getBoundingClientRect();
+  if(drag.st0===undefined)drag.st0=sc.scrollTop;
+  if(e.clientY<rc.top+70)sc.scrollTop-=14;else if(e.clientY>rc.bottom-70)sc.scrollTop+=14;
+  drag.row.style.transform=`translateY(${e.clientY-drag.sy+sc.scrollTop-drag.st0}px)`;
+  drag.row.style.pointerEvents='none';
+  const t=document.elementFromPoint(e.clientX,e.clientY)?.closest('.drag');
+  drag.list.querySelectorAll('.drop-mark').forEach(x=>x.classList.remove('drop-mark'));
+  if(t&&t.parentElement===drag.list&&t!==drag.row){t.classList.add('drop-mark');drag.over=t}
+});
+document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
+function endDrag(){
+  const from=drag.row.dataset.path,to=drag.over.dataset.path;drag=null;
+  
+  if(from!==to){const [a,i]=getList(from),j=getList(to)[1];const [x]=a.splice(i,1);a.splice(j,0,x);save()}
+  rerender();
+}
+lists.forEach(L=>L.addEventListener('contextmenu',e=>{if(e.target.closest('.drag')&&!e.target.closest('textarea'))e.preventDefault()}));
+
+const ext=t=>/mp4|aac/.test(t||'')?'m4a':/ogg/.test(t||'')?'ogg':'webm';
+const fileBase=n=>(WS[cur].name+'_'+(n.title||'순서')).replace(/[\\/:*?"<>|\s]+/g,'_');
+
+/* ---------- 저장 목록 ---------- */
+function renderSaved(){
+  const L=$('#saved-list'),vs=W().versions.slice().reverse();
+  if(!vs.length){L.innerHTML='<div class="empty">아직 저장한 지시문이 없습니다.<br>[합치기] → [저장]을 누르면 여기에 쌓입니다.</div>';return}
+  L.innerHTML=`<div class="saved-top"><span class="muted">${WS[cur].name} · 저장한 지시문 ${vs.length}개</span><button class="chip danger" data-vdelall>전체 삭제</button></div>`+
+    vs.map(v=>`<div class="card"><h3><button class="say" data-say="v:${cur}:${v.id}" aria-label="듣기" title="듣기">🔊</button>V${v.v} <span class="muted" style="font-weight:400">${v.app?'· '+esc(v.app)+' ':''}· ${new Date(v.at).toLocaleString('ko-KR')}${v.c14?' · ☁ 드라이브':''}</span></h3>
+      <div class="txt">${esc(v.text)}</div>
+      <div class="acts"><button class="chip" data-vload="${v.id}">불러오기</button><button class="chip" data-vtxt="${v.id}">텍스트 저장</button><button class="chip" data-vcopy="${v.id}">복사</button><button class="chip" data-vlisten="${v.id}">듣기</button><button class="chip danger" data-vdel="${v.id}">삭제</button></div></div>`).join('');
+}
+$('#saved-list').addEventListener('click',e=>{
+  const w=W(),b=e.target.closest('button');if(!b)return;const d=b.dataset;
+  const v=w.versions.find(x=>x.id===(d.vload??d.vtxt??d.vcopy??d.vlisten??d.vdel));
+  if('vdelall' in d){if(confirm(`${WS[cur].name}의 저장한 지시문 ${w.versions.length}개를 모두 삭제할까요?`)){w.gone2=[...(w.gone2||[]),...w.versions.map(vKey)];w.versions=[];save();renderSaved();toast('모두 삭제했습니다');cloud.on&&cloudSync().catch(()=>{})}return}
+  if(!v)return;
+  if(d.vload){w.draft=v.text;save();go('compose');toast('V'+v.v+'을 불러왔습니다')}
+  else if(d.vtxt)downloadText(`${v.app||W().appName||'앱'}_${WS[cur].name}_V${v.v}.txt`.replace(/[\\/:*?"<>|\s]+/g,'_'),v.text);
+  else if(d.vcopy)copy(v.text);
+  else if(d.vlisten)speak(v.text);
+  else if(d.vdel&&confirm('V'+v.v+'을 삭제할까요?')){(w.gone2=w.gone2||[]).push(vKey(v));w.versions=w.versions.filter(x=>x!==v);save();renderSaved();toast('삭제했습니다');cloud.on&&cloudSync().catch(()=>{})}
+});
+
+/* ---------- 합치기 (정리·요약 없음, 순서대로 이어 붙임) ---------- */
+function merged(){
+  const parts=[];
+  W().items.forEach((it,i)=>{
+    const steps=it.subs.filter(x=>x.text.trim()).map((x,j)=>(j+1)+'. '+(x.title?x.title+' — ':'')+x.text);
+    if(!it.text.trim()&&!steps.length)return;
+    parts.push([(i+1)+'. '+it.title,it.text.trim()?it.text:null,...steps].filter(x=>x!==null).join('\n'));
+  });
+  const body=parts.join('\n\n'),w=W();
+  const auto=autoChain(cur).map(k=>state.autos[k].text.trim()).filter(Boolean).join('\n');
+  if(!auto||w.autoPos==='none')return body;
+  return auto+'\n\n'+body;
+}
+function doMerge(){const w=W();w.draft=merged();w.draftAt=Date.now();save();go('compose')}
+$('#btn-merge').onclick=doMerge;$('#btn-merge2').onclick=doMerge;
+
+/* ---------- 지시문 편집 ---------- */
+function renderCompose(){$('#c-undo').hidden=W().composeUndo==null;
+  const w=W();$('#compose').value=w.draft;$('#app-name').value=w.appName||'';
+  if(!w.appName&&w.draft.trim())autoName(false);
+  document.querySelectorAll('[data-auto]').forEach(b=>b.classList.toggle('on',b.dataset.auto===w.autoPos));
+}
+$('#compose').addEventListener('input',e=>{W().draft=e.target.value;W().draftAt=Date.now();save()});
+$('#app-name').addEventListener('input',e=>{W().appName=e.target.value.trim();W().nameByUser=true;save()});
+$('#name-auto').onclick=()=>autoName(true);
+// 지시문에서 앱 이름 짓기: 구글 AI 키가 있으면 AI가, 없으면 주제·목적 첫 구절로
+const cleanName=t=>String(t||'').replace(/["'“”‘’`]/g,'').replace(/[\\/:*?<>|\n\r]+/g,' ').replace(/\s+/g,' ').trim().slice(0,24);
+function quickName(w){
+  const src=(w.items.find(x=>x.title==='주제')?.text||w.items[0]?.text||'').split(/[\n.!?。]/)[0];
+  const n=cleanName(src.replace(/^(주제는|목적은|이번에는|이건|이것은)\s*/,'').replace(/(입니다|이에요|예요|이다|을 만들|를 만들|만들어).*$/,''));
+  return n||WS[cur].name+' '+new Date().toLocaleDateString('ko-KR').replace(/\s/g,'');
+}
+async function autoName(force){
+  const ws=cur,w=W(),text=($('#compose').value||w.draft||'').trim();
+  if(!text){if(force)toast('지시문이 비어 있어 이름을 지을 수 없습니다');return}
+  if(!force&&w.nameByUser)return;
+  let name=quickName(w);
+  if(localStorage.getItem('vp.gemkey')){
+    const b=$('#name-auto');b.disabled=true;b.textContent='짓는 중…';
+    try{name=cleanName(await gemini(`아래 지시문을 보고 만들 앱(또는 작업)의 이름을 지어라.
+규칙: 한국어 2~12자의 짧은 이름 하나만 쓴다. 따옴표, 설명, 마침표는 붙이지 않는다.
+
+지시문:
+'''${text.slice(0,4000)}'''`))||name}catch(e){if(force)aiError(e)}
+    finally{b.disabled=false;b.textContent='✨ 다시 짓기'}
+  }
+  w.appName=name;w.nameByUser=false;save();
+  if(cur===ws&&stack[stack.length-1]==='compose')$('#app-name').value=name;
+  if(force)toast('앱 이름: '+name);
+}
+document.querySelectorAll('[data-auto]').forEach(b=>b.onclick=()=>{W().autoPos=b.dataset.auto;W().draft=merged();W().draftAt=Date.now();save();renderCompose()});
+$('#re-merge').onclick=()=>{if(confirm('지금 편집한 내용 대신 항목을 다시 합칠까요?')){W().composeUndo=null;W().draft=merged();W().draftAt=Date.now();save();renderCompose()}};
+$('#c-listen').onclick=()=>speaking?stopSpeak():speak($('#compose').value);
+$('#c-copy').onclick=()=>copy($('#compose').value);
+$('#c-claude').onclick=()=>sendClaude($('#compose').value);
+async function sendClaude(t){
+  await copy(t,true);
+  // claude.ai/new?q= 로 내용 전달 (모바일은 클로드 앱으로 열림). 길면 클립보드 붙여넣기용으로도 복사됨
+  const url='https://claude.ai/new?q='+encodeURIComponent(t.length>6000?t.slice(0,6000):t);
+  window.open(url,'_blank');
+  toast(t.length>6000?'내용이 길어 일부만 전달됩니다. 전체는 복사되어 있으니 붙여넣으세요.':'클로드를 엽니다 (내용도 복사됨)');
+};
+$('#c-save').onclick=async()=>{
+  const w=W(),text=$('#compose').value;if(!text.trim()){toast('저장할 내용이 없습니다');return}
+  // 번호는 지운 번호를 다시 쓰지 않고 계속 늘어남
+  if(!w.appName)await autoName(false);
+  const v=projNext(cleanName(w.appName)||'이름 없음');const ver={id:uid(),v,text,at:Date.now(),app:w.appName||''};w.versions.push(ver);save();
+  const name=`${w.appName||'앱'}_${WS[cur].name}_V${v}.txt`.replace(/[\\/:*?"<>|\s]+/g,'_');
+  if(cloud.on){try{await cloudSaveVersion(cur,ver);toast(`V${v} 저장 · 드라이브 ‘${DRIVE_ROOT}/${groupName(cur)}/${WS[cur].name}/${projName(ver)}’에도 저장했습니다`);return}catch(e){toast(e.message)}}
+  downloadText(name,text);toast('V'+v+' 저장 (스마트폰에 파일로)')
+};
+
+/* ---------- 공용 ---------- */
+async function copy(t,quiet){
+  try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}
+  quiet||toast('복사했습니다');
+}
+function downloadText(name,text){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));
+  a.download=name;a.style.display='none';document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+}
+
+/* 구글 TTS: Cloud 키가 있으면 Google Cloud TTS, 없으면 기기의 Google 음성 */
+let speaking=false,ttsAudio=null;
+let sayBtn=null;
+function stopSpeak(){speaking=false;speechSynthesis.cancel();ttsAudio?.pause();$('#c-listen').innerHTML='<i>🔊</i>듣기';
+  if(sayBtn){sayBtn.classList.remove('on');sayBtn.innerHTML=sayBtn.dataset.html||'🔊';sayBtn=null}}
+function sayText(key){
+  if(key==='compose')return $('#compose').value;
+  if(key.startsWith('n:'))return getNode(key.slice(2))?.text||'';
+  if(key.startsWith('ai:'))return (W().aiText||{})[key.slice(3)]||'';
+  const [t,k,n]=key.split(':'),w=state.ws[k];if(!w)return '';
+  if(t==='d')return w.draft||'';
+  return (w.versions.find(x=>x.id===n)||{}).text||'';
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-say]');if(!b)return;
+  const same=sayBtn===b;if(speaking){stopSpeak();if(same)return}
+  const t=sayText(b.dataset.say);if(!t.trim()){toast('읽을 내용이 없습니다');return}
+  b.dataset.html=b.innerHTML;speak(t);sayBtn=b;b.classList.add('on');b.innerHTML=b.classList.contains('lbl')?'■<span>멈춤</span>':'■'});
+function chunksOf(t,n){const out=[];let s='';for(const p of t.split(/(?<=[.!?。\n])/)){if((s+p).length>n&&s){out.push(s);s=''}s+=p}s&&out.push(s);return out.flatMap(x=>x.length>n?x.match(new RegExp('[\\s\\S]{1,'+n+'}','g')):[x])}
+async function speak(text){
+  if(!text.trim())return;stopSpeak();speaking=true;$('#c-listen').innerHTML='<i>■</i>멈춤';
+  const key=localStorage.getItem('vp.ttskey');
+  if(key){
+    try{
+      for(const part of chunksOf(text,1400)){
+        if(!speaking)break;
+        const blob=await ttsBlob(part,key);if(!speaking)break;
+        const u=URL.createObjectURL(blob);ttsAudio=new Audio(u);
+        await new Promise(res=>{ttsAudio.onended=res;ttsAudio.onpause=res;ttsAudio.play().catch(res)});URL.revokeObjectURL(u);
+      }
+      return stopSpeak();
+    }catch(e){if(!speaking)return;alert('구글 음성을 만들지 못했습니다.\n\n이유: '+e.message+'\n\n이번에는 휴대폰 기본 음성(기계음)으로 읽습니다.')}
+  }
+  const voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith('ko'));
+  const voice=voices.find(v=>/google/i.test(v.name))||voices[0];
+  const parts=chunksOf(text,200);
+  parts.forEach((p,i)=>{const u=new SpeechSynthesisUtterance(p);u.lang='ko-KR';if(voice)u.voice=voice;if(i===parts.length-1)u.onend=stopSpeak;speechSynthesis.speak(u)});
+}
+speechSynthesis?.getVoices();
+// 같은 글은 한 번만 구글에 요청: 스마트폰(IndexedDB) → 드라이브(음성 폴더) → 없을 때만 새로 만들고 둘 다에 저장
+const TTS_DEFAULT='ko-KR-Neural2-A';
+const ttsVoice=()=>localStorage.getItem('vp.ttsvoice')||TTS_DEFAULT;
+// 구글 음성 실패 이유를 알기 쉬운 말로
+function ttsWhy(status,msg){msg=msg||'';
+  if(/referer|referrer/i.test(msg))return '키에 사이트 제한이 걸려 있어 이 앱 주소에서 막혔습니다. 키 설정의 ‘웹사이트 제한’에 https://lsc571-max.github.io/* 를 추가해 주세요.';
+  if(/billing/i.test(msg))return '이 프로젝트에 결제 계정이 연결되어 있지 않습니다. 구글 클라우드 ‘결제’에서 결제 계정을 연결해 주세요.';
+  if(/has not been used|is disabled|SERVICE_DISABLED/i.test(msg))return 'Text-to-Speech 사용 설정이 꺼져 있습니다.';
+  if(/API_KEY_SERVICE_BLOCKED|not authorized to use this API|blocked/i.test(msg))return '키의 ‘API 제한’에 Cloud Text-to-Speech가 들어 있지 않습니다.';
+  if(status===400&&/api key/i.test(msg))return '키가 올바르지 않습니다.';
+  if(status===429)return '사용량 한도를 넘었습니다.';
+  return '오류 '+status+(msg?' — '+msg.slice(0,120):'');
+}
+async function textHash(t){
+  if(crypto?.subtle){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,40)}
+  let h1=5381,h2=52711;for(let i=0;i<t.length;i++){const c=t.charCodeAt(i);h1=(h1*33)^c;h2=(h2*33)^c}return (h1>>>0).toString(16)+(h2>>>0).toString(16)+t.length;
+}
+async function ttsBlob(part,key){
+  const voice=ttsVoice(),h=await textHash(voice+'|'+part.trim()),id='tts:'+h,file=h+'.mp3';
+  let b=await idbGet(id);if(b)return b;                                   // 이 스마트폰에 있음 → 요금 없음
+  const did=cloud.on&&(cloud.tts[file]||cloud.ttsOld[file]);
+  if(did){try{b=await (await dget(did)).blob();if(b.size){await idbPut(id,b);return b}}catch(e){}} // 드라이브에 있음 → 요금 없음
+  const r=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},
+    body:JSON.stringify({input:{text:part},voice:{languageCode:'ko-KR',name:voice},audioConfig:{audioEncoding:'MP3'}})});
+  if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}throw new Error(ttsWhy(r.status,m))}
+  const bin=atob((await r.json()).audioContent),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  b=new Blob([u8],{type:'audio/mpeg'});await idbPut(id,b);
+  if(cloud.on)dput(file,cloud.dirs.tts,b).then(fid=>cloud.tts[file]=fid).catch(()=>{});
+  return b;
+}
+async function idbKeys(){const d=await idb;return new Promise(r=>{const q=d.transaction('a').objectStore('a').getAllKeys();q.onsuccess=()=>r(q.result||[]);q.onerror=()=>r([])})}
+const VTYPE=n=>/Chirp3-HD|Chirp-HD/.test(n)?['최고 음질',0]:/Neural2/.test(n)?['고음질',1]:/Wavenet/.test(n)?['자연스러움',2]:['기본',3];
+async function ttsVoices(){
+  const sel=$('#tts-voice'),key=localStorage.getItem('vp.ttskey');if(!sel)return;
+  if(!key){sel.innerHTML='<option value="">키를 저장하면 목록이 나옵니다</option>';return}
+  try{const r=await fetch('https://texttospeech.googleapis.com/v1/voices?languageCode=ko-KR',{headers:{'x-goog-api-key':key}});
+    if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}throw new Error(ttsWhy(r.status,m))}
+    const vs=((await r.json()).voices||[]).filter(v=>v.name.startsWith('ko-KR')).sort((a,b)=>VTYPE(a.name)[1]-VTYPE(b.name)[1]||a.name.localeCompare(b.name));
+    const cur=ttsVoice();
+    sel.innerHTML=vs.map(v=>`<option value="${esc(v.name)}"${v.name===cur?' selected':''}>${VTYPE(v.name)[0]} · ${v.ssmlGender==='MALE'?'남성':v.ssmlGender==='FEMALE'?'여성':'중성'} · ${esc(v.name.replace('ko-KR-',''))}</option>`).join('');
+    if(!vs.some(v=>v.name===cur)&&vs[0]){sel.value=vs[0].name}
+  }catch(e){sel.innerHTML=`<option value="">목록을 못 불러옴: ${esc(e.message)}</option>`}
+}
+document.addEventListener('change',e=>{if(e.target.id!=='tts-voice'||!e.target.value)return;localStorage.setItem('vp.ttsvoice',e.target.value);toast('목소리를 바꿨습니다. ‘미리 듣기’로 들어 보세요.')});
+document.addEventListener('click',async e=>{const b=e.target.closest('#tts-preview');if(!b)return;
+  const v=$('#tts-voice').value;if(v)localStorage.setItem('vp.ttsvoice',v);
+  if(!localStorage.getItem('vp.ttskey')){toast('먼저 클라우드 TTS 키를 저장해 주세요');return}
+  if(speaking){stopSpeak();return}
+  speak('안녕하세요. 음성 지시문 앱의 목소리입니다. 이 목소리로 읽어 드릴까요?')});
+async function ttsCacheInfo(){ttsVoices();const el=$('#tts-cache');if(!el)return;const n=(await idbKeys()).filter(k=>String(k).startsWith('tts:')).length;
+  el.innerHTML=`이 스마트폰에 저장된 구글 음성: <b>${n}개</b>`+(n?` <button class="chip" id="tts-clear" type="button">저장된 음성 지우기</button>`:'')}
+document.addEventListener('click',async e=>{if(!e.target.closest('#tts-clear'))return;
+  if(!confirm('이 스마트폰에 저장된 구글 음성을 지울까요? (다시 들으면 새로 만들며 요금이 듭니다. 드라이브의 음성은 남습니다)'))return;
+  for(const k of await idbKeys())if(String(k).startsWith('tts:'))await idbDel(k);ttsCacheInfo();toast('지웠습니다')});
+
+/* ---------- 구글 드라이브: 스마트폰·PC 같이 쓰기 ---------- */
+// 드라이브 ‘음성 지시문’ 폴더: 문구.json(앞에 붙는 문구) · [메뉴 이름]/V0.txt …(저장한 지시문) · 음성/<해시>.mp3(구글 음성)
+// API 키는 올리지 않음. 키는 각 기기에만 있음.
+let gToken=null;
+function loadGis(){return new Promise((res,rej)=>{if(window.google?.accounts)return res();const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+async function token(clientId){
+  const cid=clientId||localStorage.getItem('vp.client');
+  if(gToken&&gToken.cid===cid&&gToken.exp>Date.now())return gToken.v;await loadGis();
+  return new Promise((res,rej)=>{google.accounts.oauth2.initTokenClient({client_id:cid,hint:localStorage.getItem('vp.gacct')||undefined,error_callback:e=>rej(new Error(e?.type==='popup_closed'?'로그인 창을 닫았습니다':e?.message||'로그인 실패')),scope:'https://www.googleapis.com/auth/drive.file',
+    callback:r=>r.access_token?(gToken={cid,v:r.access_token,exp:Date.now()+(r.expires_in-60)*1000},res(r.access_token)):rej(new Error(r.error_description||r.error||'로그인 실패'))}).requestAccessToken()})
+}
+const DRV='https://www.googleapis.com/drive/v3',DUP='https://www.googleapis.com/upload/drive/v3',DIR='application/vnd.google-apps.folder';
+const cloud={on:false,root:null,data:null,dirs:{},pdirs:{},tts:{},ttsOld:{},at:0};
+const DRIVE_ROOT='교수님 도우미',DRIVE_DATA='음성 지시문 앱 자료',OLD_ROOT='음성 지시문';
+const groupName=k=>Object.values(GROUPS).find(g=>g.subs.some(x=>x[0]===k))?.name||'기타';
+const projName=v=>cleanName(v.app)||'이름 없음';
+const vKey=v=>projName(v)+'|'+v.v;
+// 앱 이름(프로젝트)마다 번호 하나: 메뉴가 달라도 이어서 매김, 지운 번호는 다시 쓰지 않음
+function projNext(p){const all=Object.values(state.ws).flatMap(w=>w.versions).filter(v=>projName(v)===p);
+  state.projMax=state.projMax||{};const n=Math.max(state.projMax[p]??-1,...all.map(v=>v.v))+1;state.projMax[p]=n;return n}
+async function menuDir(k){if(cloud.dirs[k])return cloud.dirs[k];const g=await dfolder(groupName(k),cloud.root);return cloud.dirs[k]=await dfolder(WS[k].name,g)}
+async function projDir(k,p){const id=k+'|'+p;if(cloud.pdirs[id])return cloud.pdirs[id];return cloud.pdirs[id]=await dfolder(p,await menuDir(k))}
+async function dj(url,opt={}){
+  if(!gToken||gToken.exp<Date.now()){cloud.on=false;cloudChip();throw new Error('드라이브 연결이 끝났습니다. 첫 화면의 ☁를 눌러 다시 연결해 주세요.')}
+  const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:'Bearer '+gToken.v}});
+  if(r.status===401){gToken=null;cloud.on=false;cloudChip();throw new Error('드라이브 로그인이 끝났습니다. ☁를 눌러 다시 연결해 주세요.')}
+  if(!r.ok)throw new Error('드라이브 오류 '+r.status);return r;
+}
+const dq=s=>s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+async function dfind(name,parent,folder){
+  const q=`name='${dq(name)}' and '${parent}' in parents and trashed=false`+(folder?` and mimeType='${DIR}'`:'');
+  return ((await (await dj(DRV+'/files?fields=files(id,name,modifiedTime)&q='+encodeURIComponent(q))).json()).files||[])[0]||null;
+}
+async function dfolder(name,parent){const f=await dfind(name,parent,true);if(f)return f.id;
+  return (await (await dj(DRV+'/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,mimeType:DIR,parents:[parent]})})).json()).id}
+async function dlist(parent){let out=[],pt='';
+  do{const j=await (await dj(DRV+'/files?pageSize=1000&fields=nextPageToken,files(id,name,modifiedTime)&q='+encodeURIComponent(`'${parent}' in parents and trashed=false`)+(pt?'&pageToken='+pt:''))).json();
+    out=out.concat(j.files||[]);pt=j.nextPageToken}while(pt);return out}
+async function dput(name,parent,blob,id){ // 새 파일이면 만들고, 있으면 내용만 바꿈
+  if(!id)id=(await (await dj(DRV+'/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,parents:[parent]})})).json()).id;
+  await dj(DUP+'/files/'+id+'?uploadType=media',{method:'PATCH',body:blob});return id}
+const dget=id=>dj(DRV+'/files/'+id+'?alt=media');
+const dtrash=id=>dj(DRV+'/files/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
+const PHRASE_KEYS=['global',...Object.keys(WS)];
+function cloudChip(){
+  const c=$('#cloud-chip');if(!c)return;const has=localStorage.getItem('vp.client');c.hidden=!has;
+  c.classList.toggle('on',cloud.on);
+  c.textContent=cloud.busy?'☁ 드라이브와 맞추는 중…':cloud.on?'☁ 드라이브 연결됨 · '+(cloud.at?new Date(cloud.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 맞춤 · 눌러서 다시 맞추기':'')
+    :(localStorage.getItem('vp.cloud')?'☁ 드라이브와 맞추기 (눌러서 연결)':'☁ 드라이브 연결하기 (스마트폰·PC 같이 쓰기)');
+}
+async function cloudConnect(){ // 버튼을 누를 때만 (구글 로그인 창)
+  if(cloud.busy)return;
+  try{await token();cloud.busy=true;cloudChip();
+    // 정해 둔 계정과 다른 계정으로 들어오면 알려 주고 멈춤
+    const want=(localStorage.getItem('vp.gacct')||'').trim().toLowerCase();
+    if(want){const me=((await (await dj(DRV+'/about?fields=user(emailAddress)')).json()).user?.emailAddress||'').toLowerCase();
+      if(me&&me!==want){gToken=null;throw new Error(`정해 둔 계정(${want})이 아닌 ${me}(으)로 로그인했습니다. 다시 눌러 맞는 계정을 고르세요.`)}}
+    cloud.root=await dfolder(DRIVE_ROOT,'root');cloud.data=await dfolder(DRIVE_DATA,cloud.root);cloud.dirs.tts=await dfolder('음성',cloud.data);
+    // 예전 위치(음성 지시문/음성)의 구글 음성도 계속 다시 씀 (지우거나 옮기지 않음)
+    const old=await dfind(OLD_ROOT,'root',true);cloud.oldRoot=old?.id||null;
+    if(old){const ot=await dfind('음성',old.id,true);if(ot)for(const x of await dlist(ot.id))cloud.ttsOld[x.name]=x.id}
+    cloud.on=true;localStorage.setItem('vp.cloud','1');await cloudSync();
+  }catch(e){toast(e.message)}finally{cloud.busy=false;cloudChip()}
+}
+async function cloudSync(){
+  if(!cloud.on)return;
+  // 앞에 붙는 문구: 더 나중에 고친 쪽을 씀 (처음이면 예전 위치의 문구.json도 읽음)
+  let f=await dfind('문구.json',cloud.data);let remote={};
+  const pf=f||(cloud.oldRoot&&await dfind('문구.json',cloud.oldRoot));
+  if(pf)try{remote=await (await dget(pf.id)).json()}catch(e){}
+  let changed=false;const out={};
+  for(const k of PHRASE_KEYS){const a=state.autos[k],rm=remote[k];
+    if(rm&&(rm.at||0)>(a.at||0)){a.text=rm.text;a.at=rm.at;changed=true}
+    out[k]={text:a.text,at:a.at||0}}
+  await dput('문구.json',cloud.data,new Blob([JSON.stringify(out)],{type:'application/json'}),f?.id);
+  // 저장한 지시문: 교수님 도우미 / 대분류 / 메뉴 / 앱 이름 / V번호.txt
+  const remote2={}; // 메뉴 → {"앱 이름|번호": 파일}
+  for(const k in WS){const md=await menuDir(k);remote2[k]={};
+    for(const pd of (await dlist(md))){cloud.pdirs[k+'|'+pd.name]=pd.id;
+      for(const x of await dlist(pd.id)){const m=x.name.match(/^V(\d+)\.txt$/);if(m)remote2[k][pd.name+'|'+m[1]]={...x,proj:pd.name,v:+m[1]}}}}
+  // 프로젝트별 가장 큰 번호 (모든 메뉴, 드라이브 포함)
+  state.projMax=state.projMax||{};
+  for(const k in remote2)for(const x of Object.values(remote2[k]))state.projMax[x.proj]=Math.max(state.projMax[x.proj]??-1,x.v);
+  for(const k in WS){const w=state.ws[k];if(!w)continue;const rv=remote2[k];
+    for(const g of (w.gone2||[]))if(rv[g]){await dtrash(rv[g].id);delete rv[g]} // 이 기기에서 지운 것
+    w.gone2=[];
+    for(const v of w.versions){if(v.c14)continue;const x=rv[vKey(v)];
+      if(x){const t=await (await dget(x.id)).text();if(t.trim()===v.text.trim()){v.c14=x.id;continue}
+        v.v=projNext(projName(v))} // 같은 번호에 다른 내용 → 새 번호
+      v.c14=await dput(`V${v.v}.txt`,await projDir(k,projName(v)),new Blob([v.text],{type:'text/plain'}));changed=true}
+    for(const [key,x] of Object.entries(rv))if(!w.versions.some(v=>vKey(v)===key)){
+      w.versions.push({id:uid(),v:x.v,text:await (await dget(x.id)).text(),at:Date.parse(x.modifiedTime)||Date.now(),app:x.proj==='이름 없음'?'':x.proj,c14:x.id});changed=true}
+    w.versions.sort((a,b)=>a.at-b.at||a.v-b.v);
+  }
+  // 구글 음성 파일 목록
+  cloud.tts={};for(const x of await dlist(cloud.dirs.tts))cloud.tts[x.name]=x.id;
+  cloud.at=Date.now();save();cloudChip();
+  if(changed)render(stack[stack.length-1]);
+  toast('드라이브와 맞췄습니다');
+}
+let phraseT=null;
+function phraseChanged(k){if(!PHRASE_KEYS.includes(k))return;state.autos[k].at=Date.now();save();
+  clearTimeout(phraseT);if(cloud.on)phraseT=setTimeout(async()=>{try{const out={};for(const x of PHRASE_KEYS)out[x]={text:state.autos[x].text,at:state.autos[x].at||0};
+    const f=await dfind('문구.json',cloud.data);await dput('문구.json',cloud.data,new Blob([JSON.stringify(out)],{type:'application/json'}),f?.id)}catch(e){}},1500)}
+async function cloudSaveVersion(k,ver){
+  if(!cloud.on)return false;
+  ver.c14=await dput(`V${ver.v}.txt`,await projDir(k,projName(ver)),new Blob([ver.text],{type:'text/plain'}));save();return true}
+$('#cloud-chip').onclick=()=>cloud.on?(cloud.busy=true,cloudChip(),cloudSync().catch(e=>toast(e.message)).finally(()=>{cloud.busy=false;cloudChip()})):cloudConnect();
+
+/* ---------- 설정 ---------- */
+const KDEF={
+  gem:{ls:'vp.gemkey',name:'Gemini 키',secret:true,test:async k=>{
+    const r=await kfetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=100',{headers:{'x-goog-api-key':k}});
+    const n=((await r.json()).models||[]).filter(m=>/gemini/.test(m.name)).length;return `연결 성공 · 쓸 수 있는 Gemini 모델 ${n}개`}},
+  tts:{ls:'vp.ttskey',name:'클라우드 TTS 키',secret:true,test:async k=>{
+    // 실제 읽기와 똑같이 짧은 문장을 만들어 들려줌 (목록만 확인하면 성공인데 읽기는 실패하는 경우가 있음)
+    const r=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},
+      body:JSON.stringify({input:{text:'테스트입니다.'},voice:{languageCode:'ko-KR',name:ttsVoice()},audioConfig:{audioEncoding:'MP3'}})});
+    if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}throw new Error(ttsWhy(r.status,m))}
+    const a=new Audio('data:audio/mp3;base64,'+(await r.json()).audioContent);a.play().catch(()=>{});
+    return '연결 성공 · 구글 목소리로 “테스트입니다”를 읽었습니다'}},
+  drive:{ls:'vp.client',name:'클라이언트 ID',secret:false,test:async id=>{
+    const t=await token(id);
+    const r=await kfetch('https://www.googleapis.com/drive/v3/about?fields=user(displayName)',{headers:{Authorization:'Bearer '+t}});
+    const u=(await r.json()).user;return '연결 성공 · 구글 드라이브 로그인 확인'+(u?.displayName?' ('+u.displayName+')':'')}}
+};
+async function kfetch(url,opt){
+  const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),20000);
+  let r;try{r=await fetch(url,{...opt,signal:ac.signal})}catch(e){throw new Error(e.name==='AbortError'?'응답이 없습니다 (20초)':'인터넷 연결을 확인해 주세요')}finally{clearTimeout(tm)}
+  if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}
+    const why=r.status===400&&/api key/i.test(m)?'키가 올바르지 않습니다':r.status===403?'권한이 없습니다 (API 사용 설정·키 제한을 확인)':r.status===429?'사용량을 넘었습니다':'';
+    throw new Error(`오류 ${r.status}${why?' · '+why:''}${m?' — '+m.slice(0,140):''}`)}
+  return r;
+}
+// 설정(구글 연결)은 ⚙ 설정을 빠르게 5번 눌러야 열림
+let tapN=0,tapT=0;
+$('#gear').addEventListener('click',()=>{const t=Date.now();tapN=t-tapT<700?tapN+1:1;tapT=t;if(tapN>=5){tapN=0;go('google')}});
+$('#g-acct').addEventListener('change',e=>{const v=e.target.value.trim();v?localStorage.setItem('vp.gacct',v):localStorage.removeItem('vp.gacct');toast('연결할 계정을 이 기기에 저장했습니다')});
+function renderGoogle(){$('#g-acct').value=localStorage.getItem('vp.gacct')||'';if(localStorage.getItem('vp.client'))loadGis().catch(()=>{});ttsCacheInfo();
+  document.querySelectorAll('#v-google .ksec').forEach(sec=>{const d=KDEF[sec.dataset.k],v=localStorage.getItem(d.ls);
+    sec.querySelector('.kst').textContent=v?'· 저장됨':'· 없음';sec.querySelector('.kin').value=d.secret?'':(v||'');
+    const res=sec.querySelector('.kres');res.textContent='';res.className='kres'});
+}
+$('#v-google').addEventListener('click',async e=>{
+  const sec=e.target.closest('.ksec');if(!sec)return;const d=KDEF[sec.dataset.k],inp=sec.querySelector('.kin'),res=sec.querySelector('.kres');
+  if(e.target.closest('[data-ksave]')){const v=inp.value.trim();if(!v){toast('붙여넣은 값이 없습니다');return}
+    localStorage.setItem(d.ls,v);renderGoogle();cloudChip();if(d.ls==='vp.ttskey')ttsVoices();toast(d.name+'를 이 스마트폰에 저장했습니다');return}
+  if(e.target.closest('[data-kdel]')){if(!localStorage.getItem(d.ls))return;if(!confirm(d.name+'를 삭제할까요?'))return;localStorage.removeItem(d.ls);renderGoogle();toast('삭제했습니다');return}
+  const tb=e.target.closest('[data-ktest]');if(!tb)return;
+  const v=inp.value.trim()||localStorage.getItem(d.ls);
+  if(!v){res.className='kres bad';res.textContent='❌ 먼저 '+d.name+'를 붙여넣거나 저장해 주세요.';return}
+  tb.disabled=true;res.className='kres';res.textContent='확인하는 중…';
+  try{res.textContent='✅ '+await d.test(v)+(inp.value.trim()&&inp.value.trim()!==localStorage.getItem(d.ls)?' · 아직 저장 전입니다. ‘저장하기’를 눌러 주세요.':'');res.className='kres ok'}
+  catch(err){res.textContent='❌ 연결 실패 · '+err.message;res.className='kres bad'}
+  finally{tb.disabled=false}
+});
+
+/* ---------- 구글 AI (Gemini) ---------- */
+// 키는 이 기기(localStorage)에만 있고, 구글 AI 서버에 요청할 때 머리글로만 보냄
+const GEM_MODELS=['gemini-flash-latest','gemini-2.5-flash'];
+async function gemini(prompt,schema){
+  const key=localStorage.getItem('vp.gemkey');if(!key)throw Object.assign(new Error('nokey'),{nokey:true});
+  let last;
+  for(const m of GEM_MODELS){
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),30000);let r;
+    try{r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,{method:'POST',signal:ac.signal,
+      headers:{'Content-Type':'application/json','x-goog-api-key':key},
+      body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],
+        generationConfig:{temperature:0.2,...(schema?{responseMimeType:'application/json',responseSchema:schema}:{})}})})}
+    catch(e){clearTimeout(tm);if(e.name==='AbortError'){last=Object.assign(new Error('timeout'),{timeout:true});continue}throw e}
+    clearTimeout(tm);
+    if(!r.ok){let msg='';try{msg=(await r.json()).error?.message||''}catch(e){}
+      last=Object.assign(new Error(msg||String(r.status)),{status:r.status,msg});
+      if(r.status===404||r.status===429||r.status>=500)continue; // 다른 모델로 한 번 더
+      throw last}
+    const j=await r.json(),cand=j.candidates?.[0];
+    const t=(cand?.content?.parts||[]).map(x=>x.text||'').join('').trim();
+    if(!t)throw Object.assign(new Error('empty'),{blocked:cand?.finishReason||j.promptFeedback?.blockReason||'EMPTY'});
+    if(!schema)return t;
+    try{return JSON.parse(t)}catch(e){throw Object.assign(new Error('json'),{blocked:cand?.finishReason||'JSON'})}
+  }
+  throw last;
+}
+function aiError(e){
+  if(e.nokey){toast('구글 AI 키가 아직 없습니다. 첫 화면의 ⚙ 설정을 빠르게 5번 눌러 키를 넣어 주세요.');return}
+  if(e.timeout)toast('구글 AI 응답이 너무 늦습니다. 인터넷 연결을 확인하고 다시 해 주세요.');
+  else if(e.status===401||e.status===403||(e.status===400&&/api key/i.test(e.msg||'')))toast('구글 AI 키를 확인해 주세요. (오류 '+e.status+')');
+  else if(e.status===429)toast('구글 AI 사용량을 넘었습니다. 잠시 후 다시 해 주세요.');
+  else if(e.status>=500)toast('구글 AI가 지금 바쁩니다. 잠시 후 다시 해 주세요.');
+  else if(e.status)toast('구글 AI 오류 ('+e.status+')'+(e.msg?': '+e.msg.slice(0,120):''));
+  else if(e.blocked)toast(e.blocked==='MAX_TOKENS'?'내용이 너무 길어 AI가 끝까지 정리하지 못했습니다. 나눠서 해 주세요.':'AI가 답을 주지 않았습니다. 표현을 바꿔 다시 해 주세요.');
+  else toast('AI 정리에 실패했습니다. 인터넷 연결을 확인하고 다시 해 주세요.');
+}
+const RULES=`규칙:
+- 사용자의 말과 표현을 최대한 그대로 살린다. 말하지 않은 내용은 절대 지어내지 않는다.
+- '음', '어', 같은 말 반복 같은 군더더기만 빼고 읽기 좋은 문장으로 다듬는다.
+- 해당하는 내용이 없으면 빈 칸으로 둔다.`;
+function aiUndoBar(){return W().aiUndo?`<div class="aiundo"><span>방금 AI로 칸에 나눠 넣었습니다.</span><button class="chip" data-aiundo="yes">↶ 되돌리기</button><button class="chip" data-aiundo="no">확인</button></div>`:''}
+async function aiMicClick(btn){
+  const mode=btn.dataset.aimic,bar=btn.closest('.aibar'),ta=bar.querySelector('.aitext'),go=bar.querySelector('.aigo');
+  if(live&&live.btn===btn){ // 두 번째 누름: 말하기 끝 → AI로 나누기 (끝날 때까지 버튼 잠금)
+    btn.disabled=true;bar.classList.add('busy');if(go)go.hidden=true;bar.querySelector('.itime').textContent='받아 적는 중…';
+    await micStop();btn.disabled=false;bar.classList.remove('busy');runAI(mode);return}
+  if(btn.disabled||aiBusy.has(cur))return;
+  if(!localStorage.getItem('vp.gemkey')){aiError({nokey:true});return}
+  if(go)go.hidden=true;
+  const w=W();
+  await micStart({btn,node:null,ta,interim:bar.querySelector('.interim'),sink:v=>{(w.aiText=w.aiText||{})[mode]=v;save()},
+    onTick:t=>bar.querySelector('.itime').textContent='● '+t,onStop:()=>bar.querySelector('.itime').textContent=''});
+}
+const aiBusy=new Set(); // 같은 메뉴에서 AI가 두 번 돌지 않게
+async function runAI(mode){
+  const ws=cur,w=W(),view=stack[stack.length-1];
+  if(aiBusy.has(ws))return;
+  const text=((w.aiText||{})[mode]||'').trim();
+  const bar=document.querySelector(`.view.on [data-aibar="${mode}"]`),btn=bar?.querySelector('.aimic'),go=bar?.querySelector('.aigo');
+  if(!text){toast('말한 내용이 없습니다. 🎙을 누르고 말해 주세요.');return}
+  const setBusy=b=>{if(!bar)return;btn.disabled=b;bar.classList.toggle('busy',b);bar.querySelector('.itime').textContent=b?'AI가 나누는 중…':'';if(go)go.hidden=b||!text}
+  setBusy(true);aiBusy.add(ws);
+  try{
+    const si=w.items.findIndex(x=>x.title===STEPS);let n=0;
+    if(mode==='items'){
+      const fields=w.items.filter(x=>x.title!==STEPS).map(x=>x.title);
+      const o=await gemini(`너는 사용자가 말로 한 내용을 '${WS[ws].name}' 지시문의 항목별로 나누는 도우미다.
+항목: ${fields.join(', ')}
+${RULES}
+- 어느 항목에도 맞지 않는 내용은 '${ETC}'에 넣는다. 내용을 버리지 않는다.
+
+말한 내용:
+'''${text}'''`,{type:'OBJECT',properties:{fields:{type:'ARRAY',items:{type:'OBJECT',properties:{name:{type:'STRING',enum:fields},text:{type:'STRING'}},required:['name','text']}}},required:['fields']});
+      const put=fields.map(nm=>[nm,(o.fields||[]).filter(f=>f.name===nm).map(f=>String(f.text||'').trim()).filter(Boolean).join('\n')]).filter(x=>x[1]);
+      if(!put.length){toast('나눌 내용을 찾지 못했습니다. 조금 더 자세히 말해 보세요.');return}
+      w.aiUndo=JSON.parse(JSON.stringify(w.items.map(x=>({text:x.text,clips:x.clips,subs:x.subs}))));
+      for(const [nm,t] of put){const it=w.items.find(x=>x.title===nm);it.text=it.text.trim()?it.text.replace(/\s+$/,'')+'\n'+t:t;n++}
+    }else{
+      if(si<0)return;
+      const o=await gemini(`너는 사용자가 말로 한 작업 진행 순서를 단계별로 나누는 도우미다.
+${RULES}
+- 한 단계에는 한 가지 일만 넣고, 말한 순서를 지킨다.
+
+말한 내용:
+'''${text}'''`,{type:'OBJECT',properties:{steps:{type:'ARRAY',items:{type:'STRING'}}},required:['steps']});
+      const steps=(o.steps||[]).map(x=>String(x).trim()).filter(Boolean);
+      if(!steps.length){toast('나눌 내용을 찾지 못했습니다. 조금 더 자세히 말해 보세요.');return}
+      w.aiUndo=JSON.parse(JSON.stringify(w.items.map(x=>({text:x.text,clips:x.clips,subs:x.subs}))));
+      const st=w.items[si],q=[...steps];for(const x of st.subs)if(q.length&&!x.text.trim()&&!x.clips.length)x.text=q.shift();
+      for(const t of q)st.subs.push({...newNode(''),text:t});n=steps.length;
+    }
+    w.aiText[mode]='';save();
+    if(cur===ws&&stack[stack.length-1]===view)rerender();
+    toast(`AI가 ${n}${mode==='items'?'개 칸':'단계'}에 나눠 넣었습니다. 마음에 안 들면 ‘되돌리기’를 누르세요.`);
+  }catch(e){aiError(e)}finally{aiBusy.delete(ws);if(bar&&bar.isConnected)setBusy(false)}
+}
+
+/* 지시문 AI 정리 */
+$('#c-ai').onclick=async()=>{
+  const t=$('#compose').value.trim();if(!t){toast('정리할 지시문이 없습니다');return}
+  const ws=cur,w=W();
+  const btn=$('#c-ai');btn.disabled=true;btn.textContent='AI가 정리하는 중…';
+  try{
+    const out=await gemini(`아래는 사용자가 항목별로 말해서 이어 붙인 지시문이다. 클로드(AI)에게 그대로 전달할 깔끔한 지시문으로 정리해라.
+규칙:
+- 내용을 빠뜨리거나 새로 지어내지 않는다.
+- 맨 앞의 요청 문장(자동 문구)은 뜻을 그대로 살려 맨 앞에 둔다.
+- 말투의 군더더기와 중복을 정리하고, 항목 제목(목적, 주제, 주의사항, 활용하는 사람, 전달할 내용, 진행 순서 등)과 번호 목록을 살려 읽기 쉽게 쓴다.
+- 마크다운 기호(**, #)는 쓰지 않는다. 정리한 지시문만 출력하고 설명은 붙이지 않는다.
+
+지시문:
+'''${t}'''`);
+    w.composeUndo=t;w.draft=out;save();
+    if(cur===ws&&stack[stack.length-1]==='compose'){$('#compose').value=out;$('#c-undo').hidden=false}
+    toast('AI가 정리했습니다. 마음에 안 들면 ‘되돌리기’를 누르세요.');
+  }catch(e){aiError(e)}finally{btn.disabled=false;btn.textContent='✨ AI로 지시문 깔끔하게 정리'}
+};
+$('#c-undo').onclick=()=>{const w=W();if(w.composeUndo==null)return;$('#compose').value=w.composeUndo;w.draft=w.composeUndo;w.composeUndo=null;save();$('#c-undo').hidden=true;toast('되돌렸습니다')};
+
+load();renderHome();
+if(localStorage.getItem('vp.client'))loadGis().catch(()=>{});cloudChip();
+</script>
+</body>
+</html>
